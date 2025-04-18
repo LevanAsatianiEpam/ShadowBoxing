@@ -1,0 +1,172 @@
+<div class="preset-manager-container">
+  <div class="preset-manager-header">
+    <h2>Training Programs</h2>
+    <button class="close-button" (click)="close()">×</button>
+  </div>
+
+  <!-- Filter and sort controls -->
+  <div class="filter-controls" *ngIf="!isCreatingPreset && !isEditingPreset">
+    <div class="filter-row">
+      <div class="filter-group">
+        <label for="category-filter">Category:</label>
+        <select id="category-filter" [(ngModel)]="selectedCategory" (change)="onCategoryChange()">
+          <option value="">All Categories</option>
+          <option *ngFor="let category of categories" [value]="category">{{ category }}</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label for="sort-by">Sort by:</label>
+        <select id="sort-by" [(ngModel)]="sortBy" (change)="onSortChange()">
+          <option value="date">Recently Updated</option>
+          <option value="name">Name</option>
+          <option value="category">Category</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="filter-row">
+      <div class="filter-checkbox">
+        <input type="checkbox" id="favorites-only" [(ngModel)]="showFavoritesOnly" (change)="onFavoritesToggle()">
+        <label for="favorites-only">Show Favorites Only</label>
+      </div>
+      
+      <button class="create-button" (click)="startCreatePreset()">Create New Program</button>
+    </div>
+  </div>
+
+  <!-- Preset list -->
+  <div class="preset-list" *ngIf="!isCreatingPreset && !isEditingPreset">
+    <div *ngIf="filteredPresets.length === 0" class="no-presets-message">
+      <p>No training programs found. Create your first program!</p>
+      <button class="create-button" (click)="startCreatePreset()">Create New Program</button>
+    </div>
+
+    <div *ngFor="let preset of filteredPresets" class="preset-card" (click)="selectPreset(preset)">
+      <div class="preset-header">
+        <h3 class="preset-name">{{ preset.name }}</h3>
+        <div class="preset-actions">
+          <button class="favorite-button" [class.favorited]="preset.isFavorite" (click)="toggleFavorite($event, preset)">
+            <span *ngIf="preset.isFavorite">★</span>
+            <span *ngIf="!preset.isFavorite">☆</span>
+          </button>
+          <button class="edit-button" (click)="startEditPreset($event, preset)">Edit</button>
+          <button class="delete-button" (click)="deletePreset($event, preset)">Delete</button>
+        </div>
+      </div>
+      <div class="preset-details">
+        <div class="preset-detail">
+          <span class="detail-label">Category:</span>
+          <span class="detail-value">{{ preset.category }}</span>
+        </div>
+        <div class="preset-detail">
+          <span class="detail-label">Rounds:</span>
+          <span class="detail-value">{{ preset.totalRounds }}</span>
+        </div>
+        <div class="preset-detail">
+          <span class="detail-label">Round Time:</span>
+          <span class="detail-value">{{ formatTime(preset.roundTime) }}</span>
+        </div>
+        <div class="preset-detail">
+          <span class="detail-label">Rest Time:</span>
+          <span class="detail-value">{{ formatTime(preset.restTime) }}</span>
+        </div>
+        
+        <!-- Music Settings Display -->
+        <div class="preset-detail music-detail" *ngIf="preset.musicEnabled">
+          <span class="detail-label">Music:</span>
+          <span class="detail-value">
+            <span class="music-source-icon" [class]="preset.musicSource === 'youtube' ? 'youtube' : 'local'">
+              <i class="music-icon">{{ preset.musicSource === 'youtube' ? 'YT' : '♪' }}</i>
+            </span>
+          </span>
+        </div>
+        <div class="preset-detail music-detail" *ngIf="!preset.musicEnabled">
+          <span class="detail-label">Music:</span>
+          <span class="detail-value">None</span>
+        </div>
+        
+        <div class="preset-detail last-updated">
+          <span class="detail-value">Updated: {{ preset.updatedAt | date:'short' }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create/Edit Form -->
+  <div class="preset-form" *ngIf="isCreatingPreset || isEditingPreset">
+    <h3>{{ isEditingPreset ? 'Edit Program' : 'Create New Program' }}</h3>
+    
+    <div class="form-group">
+      <label for="preset-name">Program Name:</label>
+      <input type="text" id="preset-name" [(ngModel)]="newPresetName" placeholder="e.g., Morning Cardio">
+    </div>
+    
+    <div class="form-group">
+      <label for="preset-category">Category:</label>
+      <select id="preset-category" [(ngModel)]="newPresetCategory">
+        <option *ngFor="let category of categories" [value]="category">{{ category }}</option>
+      </select>
+    </div>
+    
+    <div class="form-group" *ngIf="newPresetCategory === 'Custom'">
+      <label for="custom-category">Custom Category:</label>
+      <input type="text" id="custom-category" [(ngModel)]="customCategory" placeholder="Enter custom category">
+    </div>
+    
+    <div class="form-group">
+      <label for="preset-rounds">Number of Rounds:</label>
+      <input type="number" id="preset-rounds" [(ngModel)]="newPresetRounds" min="1" max="20">
+    </div>
+    
+    <div class="form-group">
+      <label for="preset-round-time">Round Time (seconds):</label>
+      <input type="number" id="preset-round-time" [(ngModel)]="newPresetRoundTime" min="10" max="600">
+    </div>
+    
+    <div class="form-group">
+      <label for="preset-rest-time">Rest Time (seconds):</label>
+      <input type="number" id="preset-rest-time" [(ngModel)]="newPresetRestTime" min="5" max="300">
+    </div>
+    
+    <!-- Music Settings Form Fields -->
+    <div class="form-group music-enabled-group">
+      <label for="preset-music-enabled">Enable Music:</label>
+      <input type="checkbox" id="preset-music-enabled" [(ngModel)]="newPresetMusicEnabled">
+    </div>
+    
+    <div class="music-settings" *ngIf="newPresetMusicEnabled">
+      <div class="form-group">
+        <label>Music Source:</label>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input type="radio" name="musicSource" [(ngModel)]="newPresetMusicSource" value="local">
+            Local File
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="musicSource" [(ngModel)]="newPresetMusicSource" value="youtube">
+            YouTube Link
+          </label>
+        </div>
+      </div>
+      
+      <div class="form-group" *ngIf="newPresetMusicSource === 'youtube'">
+        <label for="preset-music-youtube-url">YouTube URL:</label>
+        <input type="text" id="preset-music-youtube-url" [(ngModel)]="newPresetMusicUrl" 
+               placeholder="https://www.youtube.com/watch?v=...">
+        <span class="form-note">Enter the URL of the YouTube video you want to play during your workout</span>
+      </div>
+      
+      <div class="form-group" *ngIf="newPresetMusicSource === 'local'">
+        <span class="form-note">You'll need to select a local music file when loading this program</span>
+      </div>
+    </div>
+    
+    <div class="form-actions">
+      <button class="cancel-button" (click)="cancelEdit()">Cancel</button>
+      <button class="save-button" (click)="savePreset()">
+        {{ isEditingPreset ? 'Update Program' : 'Save Program' }}
+      </button>
+    </div>
+  </div>
+</div>

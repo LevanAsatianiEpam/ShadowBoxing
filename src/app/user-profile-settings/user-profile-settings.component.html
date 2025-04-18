@@ -1,0 +1,77 @@
+<div class="user-profile-container">
+  <div class="profile-header">
+    <h2>User Profile Settings</h2>
+    <p class="subtitle">Enter your details for more accurate calorie calculations</p>
+  </div>
+  
+  <div class="form-container">
+    <form (ngSubmit)="saveProfile()" #profileForm="ngForm">
+      <div class="form-group">
+        <label for="weight">Weight (kg)</label>
+        <input 
+          type="number" 
+          id="weight" 
+          name="weight" 
+          [(ngModel)]="profile.weight" 
+          required
+          min="30"
+          max="200"
+          placeholder="e.g., 70">
+        <span class="form-note">Enter your weight in kilograms</span>
+      </div>
+      
+      <div class="form-group">
+        <label for="height">Height (cm)</label>
+        <input 
+          type="number" 
+          id="height" 
+          name="height" 
+          [(ngModel)]="profile.height" 
+          required
+          min="100"
+          max="250"
+          placeholder="e.g., 175">
+        <span class="form-note">Enter your height in centimeters</span>
+      </div>
+      
+      <div class="form-group">
+        <label for="age">Age (years)</label>
+        <input 
+          type="number" 
+          id="age" 
+          name="age" 
+          [(ngModel)]="profile.age" 
+          min="12"
+          max="100"
+          placeholder="e.g., 30">
+      </div>
+      
+      <div class="form-group">
+        <label>Gender</label>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input 
+              type="radio" 
+              name="gender" 
+              value="male" 
+              [(ngModel)]="profile.gender">
+            Male
+          </label>
+          <label class="radio-label">
+            <input 
+              type="radio" 
+              name="gender" 
+              value="female" 
+              [(ngModel)]="profile.gender">
+            Female
+          </label>
+        </div>
+      </div>
+      
+      <div class="form-actions">
+        <button type="button" class="cancel-button" (click)="close()">Cancel</button>
+        <button type="submit" class="save-button" [disabled]="!profileForm.valid">Save Profile</button>
+      </div>
+    </form>
+  </div>
+</div>

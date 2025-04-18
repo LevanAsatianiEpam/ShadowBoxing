@@ -1,0 +1,94 @@
+<div class="workout-history-container">
+  <h2>Workout History</h2>
+  
+  <!-- Stats Summary -->
+  <div class="stats-summary" *ngIf="stats">
+    <div class="stats-card">
+      <h3>Total</h3>
+      <p>Workouts: {{ stats.totalWorkouts }}</p>
+      <p>Time: {{ formatTime(stats.totalTimeInSeconds) }}</p>
+      <p>Calories: {{ stats.totalCaloriesBurned }}</p>
+    </div>
+    
+    <div class="stats-card">
+      <h3>This Week</h3>
+      <p>Workouts: {{ stats.thisWeekWorkouts }}</p>
+      <p>Time: {{ formatTime(stats.thisWeekTimeInSeconds) }}</p>
+      <p>Calories: {{ stats.thisWeekCaloriesBurned }}</p>
+    </div>
+    
+    <div class="stats-card">
+      <h3>Average</h3>
+      <p>Duration: {{ formatTime(stats.avgWorkoutDuration) }}</p>
+    </div>
+  </div>
+  
+  <!-- Workout List -->
+  <div class="workout-list" *ngIf="!isDetailView">
+    <h3>Your Workouts</h3>
+    
+    <div *ngIf="workoutHistory.length === 0" class="no-workouts">
+      <p>No workouts recorded yet. Complete your first workout to see it here!</p>
+    </div>
+    
+    <div *ngFor="let workout of workoutHistory" class="workout-item" (click)="viewWorkoutDetail(workout)">
+      <div class="workout-item-header">
+        <span class="workout-date">{{ formatDate(workout.date) }}</span>
+        <span class="workout-name">{{ workout.presetName }}</span>
+      </div>
+      
+      <div class="workout-item-details">
+        <div class="workout-stats-pill">
+          <span class="icon">⏱</span> {{ formatTime(workout.duration) }}
+        </div>
+        <div class="workout-stats-pill">
+          <span class="icon">🔥</span> {{ workout.caloriesBurned }} cal
+        </div>
+        <div class="workout-stats-pill intensity-{{ workout.intensity.toLowerCase() }}">
+          {{ workout.intensity }}
+        </div>
+      </div>
+      
+      <button class="delete-btn" (click)="deleteWorkout(workout.id, $event)">✕</button>
+    </div>
+  </div>
+  
+  <!-- Workout Detail View -->
+  <div *ngIf="isDetailView && selectedWorkout" class="workout-detail">
+    <button class="back-btn" (click)="closeDetailView()">← Back</button>
+    
+    <h3>{{ selectedWorkout.presetName }}</h3>
+    <p class="detail-date">{{ formatDate(selectedWorkout.date) }}</p>
+    
+    <div class="detail-stats">
+      <div class="detail-stat">
+        <span class="stat-label">Duration</span>
+        <span class="stat-value">{{ formatTime(selectedWorkout.duration) }}</span>
+      </div>
+      
+      <div class="detail-stat">
+        <span class="stat-label">Intensity</span>
+        <span class="stat-value intensity-{{ selectedWorkout.intensity.toLowerCase() }}">{{ selectedWorkout.intensity }}</span>
+      </div>
+      
+      <div class="detail-stat">
+        <span class="stat-label">Calories Burned</span>
+        <span class="stat-value">{{ selectedWorkout.caloriesBurned }}</span>
+      </div>
+    </div>
+    
+    <div class="detail-rounds" *ngIf="selectedWorkout.rounds && selectedWorkout.rounds > 0">
+      <h4>Rounds</h4>
+      <ul class="rounds-list">
+        <li *ngFor="let round of selectedWorkout.rounds; let i = index">
+          Round {{ i + 1 }}: {{ formatTime(round.duration) }} {{ round.type }}
+        </li>
+      </ul>
+    </div>
+    
+    <div class="detail-notes" *ngIf="selectedWorkout.notes">
+      <h4>Notes</h4>
+      <p>{{ selectedWorkout.notes }}</p>
+    </div>
+  </div>
+</div>

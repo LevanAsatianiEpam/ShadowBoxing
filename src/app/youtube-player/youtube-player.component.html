@@ -1,0 +1,15 @@
+<div class="youtube-player-container">
+  <div *ngIf="isValidUrl(); else noVideo" class="player-wrapper">
+    <iframe 
+      [src]="safeSrc"
+      frameborder="0" 
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+      allowfullscreen>
+    </iframe>
+  </div>
+  <ng-template #noVideo>
+    <div class="no-video-message" *ngIf="videoUrl">
+      <p>Invalid YouTube URL. Please enter a valid YouTube video URL.</p>
+    </div>
+  </ng-template>
+</div>

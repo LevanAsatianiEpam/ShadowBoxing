@@ -1,0 +1,243 @@
+<div class="boxing-timer">
+  <!-- Settings Section -->
+  <div class="timer-settings" *ngIf="!isRunning">
+    <!-- Preset Management Controls -->
+    <div class="preset-controls">
+      <div class="current-preset" *ngIf="currentPreset">
+        <h3>Current Program: {{ currentPreset.name }}</h3>
+        <span class="preset-category">{{ currentPreset.category }}</span>
+      </div>
+      
+      <div class="preset-buttons">
+        <button class="preset-button" (click)="showPresets()">Load Program</button>
+        <button class="preset-button" (click)="showSavePresetForm()">Save Current Settings</button>
+        <button class="preset-button history-button" (click)="showHistory()">
+          <span class="history-icon">📊</span> History
+        </button>
+        <button class="preset-button profile-button" (click)="showProfile()">
+          <span class="profile-icon">👤</span> User Profile
+        </button>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <label for="rounds">Number of Rounds:</label>
+      <input type="number" id="rounds" [(ngModel)]="totalRounds" min="1" max="99">
+    </div>
+    
+    <div class="settings-group">
+      <label for="roundTime">Round Time (seconds):</label>
+      <input type="number" id="roundTime" [(ngModel)]="roundTime" min="10" max="999">
+    </div>
+    
+    <div class="settings-group">
+      <label for="restTime">Rest Time (seconds):</label>
+      <input type="number" id="restTime" [(ngModel)]="restTime" min="5" max="999">
+    </div>
+    
+    <div class="settings-group">
+      <label for="workout-intensity">Workout Intensity:</label>
+      <select id="workout-intensity" [(ngModel)]="workoutIntensity">
+        <option value="Low">Light (less effort)</option>
+        <option value="Medium">Medium (moderate effort)</option>
+        <option value="High">Intense (high effort)</option>
+      </select>
+    </div>
+    
+    <div class="settings-group">
+      <label for="music-enabled">Enable Music:</label>
+      <input type="checkbox" id="music-enabled" [(ngModel)]="musicEnabled">
+    </div>
+    
+    <div class="music-settings" *ngIf="musicEnabled">
+      <div class="music-source-tabs">
+        <button 
+          [class.active]="musicSource === 'local'" 
+          (click)="setMusicSourceLocal()">
+          Local Music File
+        </button>
+        <button 
+          [class.active]="musicSource === 'youtube'" 
+          (click)="setMusicSourceYoutube()">
+          YouTube Music
+        </button>
+      </div>
+      
+      <div class="music-source-content">
+        <!-- Local Music File Input -->
+        <div *ngIf="musicSource === 'local'" class="settings-group">
+          <label for="music-file">Select Music File:</label>
+          <input type="file" id="music-file" accept="audio/*" (change)="onMusicFileSelected($event)">
+        </div>
+        
+        <!-- YouTube URL Input -->
+        <div *ngIf="musicSource === 'youtube'" class="settings-group">
+          <label for="youtube-url">YouTube Video URL:</label>
+          <input type="text" id="youtube-url" [(ngModel)]="youtubeUrl" placeholder="https://www.youtube.com/watch?v=...">
+          
+          <!-- Preview YouTube Player -->
+          <div class="youtube-preview">
+            <app-youtube-player 
+              [videoUrl]="youtubeUrl" 
+              [isPlaying]="false"
+              (playerReady)="onYoutubePlayerReady()">
+            </app-youtube-player>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <button class="start-button" (click)="startTimer()">Start Training</button>
+  </div>
+  
+  <!-- Timer Display Section -->
+  <div class="timer-display" *ngIf="isRunning">
+    <div class="round-info">
+      <h2>Round {{ currentRound }} of {{ totalRounds }}</h2>
+      <h3 [ngClass]="{'rest': isResting}">{{ isResting ? 'REST' : 'FIGHT!' }}</h3>
+    </div>
+    
+    <div class="time-display">
+      <span class="time">{{ formatTime(timeRemaining) }}</span>
+    </div>
+    
+    <div class="controls">
+      <button (click)="pauseResumeTimer()" class="control-button">
+        {{ isPaused ? 'Resume' : 'Pause' }}
+      </button>
+      <button (click)="resetTimer()" class="control-button">Reset</button>
+    </div>
+    
+    <!-- YouTube Player (when active) -->
+    <div *ngIf="musicEnabled && musicSource === 'youtube' && youtubeUrl" class="youtube-player-during-workout">
+      <app-youtube-player 
+        [videoUrl]="youtubeUrl" 
+        [isPlaying]="youtubeIsPlaying"
+        (playerReady)="onYoutubePlayerReady()">
+      </app-youtube-player>
+    </div>
+  </div>
+
+  <!-- Sound elements -->
+  <audio #bellSound src="assets/bell.mp3" preload="auto"></audio>
+  <audio #musicPlayer *ngIf="musicEnabled && musicSource === 'local'" [src]="musicUrl"></audio>
+  
+  <!-- Preset Manager Modal -->
+  <div class="modal-overlay" *ngIf="showPresetManager">
+    <app-preset-manager 
+      (presetSelected)="onPresetSelected($event)"
+      (closeRequested)="hidePresets()">
+    </app-preset-manager>
+  </div>
+  
+  <!-- Workout History Modal -->
+  <app-workout-history
+    *ngIf="showWorkoutHistory"
+    (closeRequested)="hideHistory()">
+  </app-workout-history>
+  
+  <!-- Save Preset Modal -->
+  <div class="modal-overlay" *ngIf="savePresetMode">
+    <div class="save-preset-modal">
+      <h2>{{ currentPreset ? 'Update Program' : 'Save Program' }}</h2>
+      
+      <div class="form-group">
+        <label for="preset-name">Program Name:</label>
+        <input type="text" id="preset-name" [(ngModel)]="newPresetName" placeholder="e.g., Morning Cardio">
+      </div>
+      
+      <div class="form-group">
+        <label for="preset-category">Category:</label>
+        <select id="preset-category" [(ngModel)]="newPresetCategory">
+          <option value="Shadow Boxing">Shadow Boxing</option>
+          <option value="Heavy Bag">Heavy Bag</option>
+          <option value="Speed Bag">Speed Bag</option>
+          <option value="Cardio">Cardio</option>
+          <option value="Abs Workout">Abs Workout</option>
+          <option value="Strength Training">Strength Training</option>
+          <option value="Footwork">Footwork</option>
+          <option value="Custom">Custom</option>
+        </select>
+      </div>
+      
+      <!-- Include Music Settings -->
+      <div class="form-group music-settings-summary">
+        <label>Include Music Settings:</label>
+        <div class="music-info">
+          <span *ngIf="musicEnabled">
+            <span class="music-status enabled">Music Enabled</span>
+            <span class="music-source"> - {{ musicSource === 'youtube' ? 'YouTube Video' : 'Local Music File' }}</span>
+            <span class="music-url" *ngIf="musicSource === 'youtube' && youtubeUrl">
+              <br>URL: {{ youtubeUrl | slice:0:30 }}{{ youtubeUrl.length > 30 ? '...' : '' }}
+            </span>
+          </span>
+          <span *ngIf="!musicEnabled" class="music-status disabled">
+            Music Disabled
+          </span>
+        </div>
+      </div>
+      
+      <div class="save-preset-actions">
+        <button class="cancel-button" (click)="cancelSavePreset()">Cancel</button>
+        <button class="save-button" (click)="saveCurrentSettings()">
+          {{ currentPreset ? 'Update' : 'Save' }}
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Workout Completed Modal -->
+  <div class="modal-overlay" *ngIf="showWorkoutCompletedModal">
+    <div class="workout-completed-modal">
+      <h2>Workout Completed!</h2>
+      
+      <div class="workout-summary">
+        <div class="summary-item">
+          <div class="summary-label">Total Duration:</div>
+          <div class="summary-value">{{ formatLongDuration(totalWorkoutTime) }}</div>
+        </div>
+        
+        <div class="summary-item">
+          <div class="summary-label">Rounds Completed:</div>
+          <div class="summary-value">{{ currentRound - 1 }} of {{ totalRounds }}</div>
+        </div>
+        
+        <div class="summary-item">
+          <div class="summary-label">Intensity:</div>
+          <div class="summary-value intensity-value">{{ workoutIntensity }}</div>
+        </div>
+        
+        <div class="summary-item">
+          <div class="summary-label">Calories Burned:</div>
+          <div class="summary-value calories-value">
+            {{ workoutHistoryService.calculateCaloriesBurned(totalWorkoutTime, workoutIntensity) }}
+          </div>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="workout-notes">Notes (optional):</label>
+        <textarea 
+          id="workout-notes" 
+          [(ngModel)]="workoutNotes" 
+          placeholder="Add notes about this workout..."
+          rows="3">
+        </textarea>
+      </div>
+      
+      <div class="workout-completed-actions">
+        <button class="cancel-button" (click)="closeWorkoutCompletedModal()">Discard</button>
+        <button class="save-button" (click)="saveWorkoutToHistory()">
+          Save to History
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- User Profile Settings Modal -->
+  <div class="modal-overlay" *ngIf="showUserProfileSettings">
+    <app-user-profile-settings
+      (closeModal)="hideProfile()">
+    </app-user-profile-settings>
+  </div>
+</div>
