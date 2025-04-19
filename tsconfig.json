@@ -12,13 +12,15 @@
     "importHelpers": true,
     "target": "ES2022",
     "typeRoots": [
-      "node_modules/@types"
+      "node_modules/@types",
+      "src/types"
     ],
     "lib": [
       "es2018",
       "dom"
     ],
-    "useDefineForClassFields": false
+    "useDefineForClassFields": false,
+    "skipLibCheck": true
   },
   "angularCompilerOptions": {
     "fullTemplateTypeCheck": true,

@@ -1,0 +1,233 @@
+<div class="technique-analysis-container">
+  <!-- Header with close button -->
+  <div class="technique-header">
+    <h2>Boxing Technique Analysis</h2>
+    <button class="close-button" (click)="close()">×</button>
+  </div>
+
+  <!-- Tab Navigation -->
+  <div class="tab-navigation">
+    <button 
+      [class.active]="activeTab === 'record'"
+      (click)="setActiveTab('record')"
+      [disabled]="isAnalyzing">
+      1. Record/Upload
+    </button>
+    <button 
+      [class.active]="activeTab === 'analyze'"
+      (click)="setActiveTab('analyze')"
+      [disabled]="!userVideoURL || !proVideoURL || isAnalyzing">
+      2. Analyze
+    </button>
+    <button 
+      [class.active]="activeTab === 'results'"
+      (click)="setActiveTab('results')"
+      [disabled]="!analysisComplete">
+      3. Results
+    </button>
+  </div>
+
+  <!-- Record/Upload Tab -->
+  <div class="tab-content" *ngIf="activeTab === 'record'">
+    <div class="video-section">
+      <div class="video-container user-video-container">
+        <h3>Your Technique</h3>
+        
+        <div class="video-display">
+          <video #userVideo autoplay playsinline controls></video>
+          <div class="video-overlay" *ngIf="!userVideoURL && !isRecording && !userStream">
+            <p>No video recorded yet</p>
+          </div>
+          <!-- Add camera error message display -->
+          <div class="video-overlay error" *ngIf="cameraError">
+            <p class="error-message">{{ cameraErrorMessage }}</p>
+            <button class="control-button retry-button" (click)="retryCamera()">
+              Retry Camera
+            </button>
+          </div>
+        </div>
+        
+        <div class="video-controls">
+          <button class="control-button" (click)="startCamera()" *ngIf="!userStream && !isRecording && !userVideoURL && !cameraError">
+            Start Camera
+          </button>
+          <button class="control-button record-button" (click)="startRecording()" *ngIf="userStream && !isRecording && !userVideoURL">
+            Start Recording
+          </button>
+          <button class="control-button stop-button" (click)="stopRecording()" *ngIf="isRecording">
+            Stop Recording
+          </button>
+          
+          <div class="upload-section" *ngIf="!isRecording">
+            <p>- OR -</p>
+            <label class="upload-button">
+              Upload Your Boxing Video
+              <input type="file" accept="video/*" (change)="onUserVideoUpload($event)" style="display: none;">
+            </label>
+          </div>
+        </div>
+      </div>
+      
+      <div class="video-container pro-video-container">
+        <h3>Pro Reference</h3>
+        
+        <div class="video-display">
+          <video #proVideo playsinline controls></video>
+          <div class="video-overlay" *ngIf="!proVideoURL">
+            <p>No reference video uploaded</p>
+          </div>
+        </div>
+        
+        <div class="video-controls">
+          <div class="upload-section">
+            <label class="upload-button">
+              Upload Pro Boxer Video
+              <input type="file" accept="video/*" (change)="onProVideoUpload($event)" style="display: none;">
+            </label>
+            <p class="hint">Upload a video of a professional boxer performing the same technique for comparison</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="actions">
+      <button 
+        class="action-button analyze-button" 
+        [disabled]="!userVideoURL || !proVideoURL || !modelLoaded" 
+        (click)="startAnalysis()">
+        Analyze Technique
+      </button>
+      
+      <div class="model-status" *ngIf="loadingModel">
+        <div class="loading-spinner"></div>
+        <p>Loading AI model...</p>
+      </div>
+      
+      <div class="model-status error" *ngIf="modelLoadError">
+        <p>Error loading AI model. Please refresh and try again.</p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Analysis Tab -->
+  <div class="tab-content" *ngIf="activeTab === 'analyze'">
+    <div class="analysis-progress">
+      <h3>Analyzing Boxing Technique</h3>
+      
+      <div class="progress-bar">
+        <div class="progress-fill" [style.width.%]="analysisProgress"></div>
+      </div>
+      
+      <p class="progress-text">{{ analysisProgress.toFixed(0) }}% Complete</p>
+      
+      <div class="analysis-steps">
+        <div class="step" [class.active]="analysisProgress >= 20">
+          <div class="step-number">1</div>
+          <div class="step-label">Extracting poses</div>
+        </div>
+        <div class="step" [class.active]="analysisProgress >= 40">
+          <div class="step-number">2</div>
+          <div class="step-label">Analyzing stance</div>
+        </div>
+        <div class="step" [class.active]="analysisProgress >= 60">
+          <div class="step-number">3</div>
+          <div class="step-label">Analyzing punch technique</div>
+        </div>
+        <div class="step" [class.active]="analysisProgress >= 80">
+          <div class="step-number">4</div>
+          <div class="step-label">Comparing with pro reference</div>
+        </div>
+        <div class="step" [class.active]="analysisProgress >= 100">
+          <div class="step-number">5</div>
+          <div class="step-label">Generating feedback</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Results Tab -->
+  <div class="tab-content" *ngIf="activeTab === 'results'">
+    <div class="results-container" *ngIf="techniqueAnalysis">
+      <div class="overall-score">
+        <div class="score-circle">
+          <span class="score-value">{{ techniqueAnalysis.overallScore }}</span>
+          <span class="score-label">Score</span>
+        </div>
+        <p class="score-description">Overall Technique Score</p>
+      </div>
+      
+      <div class="video-comparison">
+        <div class="comparison-video">
+          <h4>Your Technique</h4>
+          <video [src]="userVideoURL" controls></video>
+          <canvas #userCanvas></canvas>
+        </div>
+        <div class="comparison-video">
+          <h4>Pro Reference</h4>
+          <video [src]="proVideoURL" controls></video>
+          <canvas #proCanvas></canvas>
+        </div>
+      </div>
+      
+      <div class="analysis-details">
+        <h3>Technique Breakdown</h3>
+        
+        <div class="score-component">
+          <div class="component-header">
+            <h4>Stance</h4>
+            <div class="component-score">{{ techniqueAnalysis.stance.score }}/100</div>
+          </div>
+          <p class="component-feedback">{{ techniqueAnalysis.stance.feedback }}</p>
+          <div class="score-bar">
+            <div class="score-fill" [style.width.%]="techniqueAnalysis.stance.score"></div>
+          </div>
+        </div>
+        
+        <div class="score-component">
+          <div class="component-header">
+            <h4>Hand Position</h4>
+            <div class="component-score">{{ techniqueAnalysis.handPosition.score }}/100</div>
+          </div>
+          <p class="component-feedback">{{ techniqueAnalysis.handPosition.feedback }}</p>
+          <div class="score-bar">
+            <div class="score-fill" [style.width.%]="techniqueAnalysis.handPosition.score"></div>
+          </div>
+        </div>
+        
+        <div class="score-component">
+          <div class="component-header">
+            <h4>Footwork</h4>
+            <div class="component-score">{{ techniqueAnalysis.footwork.score }}/100</div>
+          </div>
+          <p class="component-feedback">{{ techniqueAnalysis.footwork.feedback }}</p>
+          <div class="score-bar">
+            <div class="score-fill" [style.width.%]="techniqueAnalysis.footwork.score"></div>
+          </div>
+        </div>
+        
+        <div class="score-component">
+          <div class="component-header">
+            <h4>Balance</h4>
+            <div class="component-score">{{ techniqueAnalysis.balance.score }}/100</div>
+          </div>
+          <p class="component-feedback">{{ techniqueAnalysis.balance.feedback }}</p>
+          <div class="score-bar">
+            <div class="score-fill" [style.width.%]="techniqueAnalysis.balance.score"></div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="general-feedback">
+        <h3>General Feedback</h3>
+        <ul>
+          <li *ngFor="let feedback of techniqueAnalysis.generalFeedback">{{ feedback }}</li>
+        </ul>
+      </div>
+      
+      <div class="results-actions">
+        <button class="action-button" (click)="setActiveTab('record')">Record New Video</button>
+        <button class="action-button" (click)="close()">Close</button>
+      </div>
+    </div>
+  </div>
+</div>

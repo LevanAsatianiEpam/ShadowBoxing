@@ -5,6 +5,7 @@ import { YoutubePlayerComponent } from '../youtube-player/youtube-player.compone
 import { PresetManagerComponent } from '../preset-manager/preset-manager.component';
 import { WorkoutHistoryComponent } from '../workout-history/workout-history.component';
 import { UserProfileSettingsComponent } from '../user-profile-settings/user-profile-settings.component';
+import { TechniqueAnalysisComponent } from '../technique-analysis/technique-analysis.component';
 import { WorkoutPreset } from '../models/workout-preset.model';
 import { WorkoutIntensity } from '../models/workout-history.model';
 import { PresetService } from '../services/preset.service';
@@ -19,7 +20,8 @@ import { WorkoutHistoryService } from '../services/workout-history.service';
     YoutubePlayerComponent, 
     PresetManagerComponent, 
     WorkoutHistoryComponent,
-    UserProfileSettingsComponent
+    UserProfileSettingsComponent,
+    TechniqueAnalysisComponent
   ],
   templateUrl: './boxing-timer.component.html',
   styleUrl: './boxing-timer.component.css'
@@ -74,6 +76,9 @@ export class BoxingTimerComponent {
   // User Profile Settings
   showUserProfileSettings: boolean = false;
   
+  // Technique Analysis
+  showTechniqueAnalysisModal: boolean = false;
+  
   constructor(
     private ngZone: NgZone, 
     private presetService: PresetService,
@@ -125,14 +130,11 @@ export class BoxingTimerComponent {
     
     this.playBellSound();
     
-    // Pause music during rest if configured
-    if (this.musicEnabled) {
-      if (this.musicSource === 'youtube') {
-        this.youtubeIsPlaying = false;
-      } else if (this.musicPlayer?.nativeElement) {
-        this.musicPlayer.nativeElement.pause();
-      }
+    // Only pause local music during rest, keep YouTube music playing
+    if (this.musicEnabled && this.musicSource === 'local' && this.musicPlayer?.nativeElement) {
+      this.musicPlayer.nativeElement.pause();
     }
+    // Note: We're intentionally NOT pausing YouTube music here to keep it playing
     
     this.startCountdown();
   }
@@ -443,5 +445,14 @@ export class BoxingTimerComponent {
   
   hideProfile(): void {
     this.showUserProfileSettings = false;
+  }
+  
+  // Technique Analysis
+  showTechniqueAnalysis(): void {
+    this.showTechniqueAnalysisModal = true;
+  }
+  
+  hideTechniqueAnalysis(): void {
+    this.showTechniqueAnalysisModal = false;
   }
 }

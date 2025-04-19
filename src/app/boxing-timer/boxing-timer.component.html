@@ -17,6 +17,9 @@
         <button class="preset-button profile-button" (click)="showProfile()">
           <span class="profile-icon">👤</span> User Profile
         </button>
+        <button class="preset-button technique-button" (click)="showTechniqueAnalysis()">
+          <span class="technique-icon">🥊</span> Technique Analysis
+        </button>
       </div>
     </div>
 
@@ -239,5 +242,12 @@
     <app-user-profile-settings
       (closeModal)="hideProfile()">
     </app-user-profile-settings>
+  </div>
+  
+  <!-- Technique Analysis Modal -->
+  <div class="modal-overlay" *ngIf="showTechniqueAnalysisModal">
+    <app-technique-analysis
+      (closeRequested)="hideTechniqueAnalysis()">
+    </app-technique-analysis>
   </div>
 </div>
