@@ -137,20 +137,23 @@ export class YoutubePlayerComponent implements OnChanges, OnDestroy {
 
   private createSafeUrl(): void {
     if (this.youtubeVideoId) {
-      // Build embed URL with proper parameters for mobile compatibility
+      // Build embed URL optimized for audio playback
       const embedUrl = `https://www.youtube.com/embed/${this.youtubeVideoId}?` + 
         `enablejsapi=1` +
         `&playsinline=1` +
         `&rel=0` +
         `&modestbranding=1` +
         `&controls=1` +
-        `&showinfo=0` +
+        `&iv_load_policy=3` + // Hide annotations
+        `&disablekb=0` + 
+        `&fs=0` + // Disable fullscreen
         `&origin=${encodeURIComponent(window.location.origin)}` +
-        `${this.isPlaying ? '&autoplay=1&mute=0' : ''}`;
+        `${this.isPlaying ? '&autoplay=1' : ''}`;
       
       // Add playlist if present in original URL
       let finalEmbedUrl = embedUrl;
       try {
+        // Handle playlists
         if (this.videoUrl.includes('list=')) {
           const match = this.videoUrl.match(/[?&]list=([^&]+)/);
           if (match && match[1]) {
