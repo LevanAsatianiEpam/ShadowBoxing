@@ -1,5 +1,5 @@
 {
-    "staticWebApps.outputSubpath": "dist/angular-basic",
+    "staticWebApps.outputSubpath": "dist/shadow-boxing",
     "terminal.integrated.gpuAcceleration": "auto",
     "terminal.integrated.fontFamily": "'CaskaydiaCove Nerd Font Mono'",
 }

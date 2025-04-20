@@ -6,7 +6,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "angular-basic": {
+    "shadow-boxing": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -17,7 +17,7 @@
           "builder": "@angular-devkit/build-angular:application",
           "options": {
             "outputPath": {
-              "base": "dist/angular-basic"
+              "base": "dist/shadow-boxing"
             },
             "index": "src/index.html",
             "polyfills": [
@@ -69,18 +69,18 @@
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "options": {
-            "buildTarget": "angular-basic:build"
+            "buildTarget": "shadow-boxing:build"
           },
           "configurations": {
             "production": {
-              "buildTarget": "angular-basic:build:production"
+              "buildTarget": "shadow-boxing:build:production"
             }
           }
         },
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n",
           "options": {
-            "buildTarget": "angular-basic:build"
+            "buildTarget": "shadow-boxing:build"
           }
         },
         "test": {
@@ -103,11 +103,11 @@
           "builder": "@angular-devkit/build-angular:protractor",
           "options": {
             "protractorConfig": "e2e/protractor.conf.js",
-            "devServerTarget": "angular-basic:serve"
+            "devServerTarget": "shadow-boxing:serve"
           },
           "configurations": {
             "production": {
-              "devServerTarget": "angular-basic:serve:production"
+              "devServerTarget": "shadow-boxing:serve:production"
             }
           }
         }

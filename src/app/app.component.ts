@@ -1,4 +1,6 @@
 import { Component } from '@angular/core';
+import { VersionInfoComponent } from './version-info/version-info.component';
+import { BoxingTimerComponent } from './boxing-timer/boxing-timer.component';
 
 @Component({
     selector: 'app-root',
@@ -13,6 +15,7 @@ import { Component } from '@angular/core';
       <footer>
         <p>© 2025 Boxing Training App</p>
       </footer>
+      <app-version-info></app-version-info>
     </div>
     `,
     styles: [`
@@ -33,7 +36,8 @@ import { Component } from '@angular/core';
         color: #666;
       }
     `],
-    standalone: false
+    standalone: true,
+    imports: [VersionInfoComponent, BoxingTimerComponent]
 })
 export class AppComponent {
   title = 'Boxing Training Timer';
