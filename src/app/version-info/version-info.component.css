@@ -1,0 +1,161 @@
+.version-display {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  z-index: 100;
+  cursor: pointer;
+}
+
+.version-badge {
+  background-color: #D32F2F; /* Boxing glove red color */
+  color: white;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+  display: inline-block;
+}
+
+.version-badge:hover {
+  background-color: #B71C1C;
+  transform: scale(1.05);
+}
+
+/* Dialog Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.version-dialog {
+  background-color: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.version-dialog-header {
+  background-color: #D32F2F;
+  color: white;
+  padding: 16px;
+  position: relative;
+}
+
+.version-dialog-header h2 {
+  margin: 0 0 10px 0;
+  font-size: 24px;
+}
+
+.version-number {
+  font-size: 16px;
+  font-weight: bold;
+  display: block;
+}
+
+.release-date {
+  font-size: 14px;
+  opacity: 0.8;
+  display: block;
+  margin-top: 3px;
+}
+
+.version-dialog-content {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.version-dialog-footer {
+  padding: 12px 16px;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid #eee;
+}
+
+/* Content Styles */
+.current-version h3, 
+.version-history h3 {
+  margin: 0 0 12px 0;
+  color: #333;
+  font-size: 18px;
+}
+
+.changes-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.changes-list li {
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.version-history {
+  margin-top: 24px;
+  border-top: 1px solid #eee;
+  padding-top: 20px;
+}
+
+.history-entry {
+  margin-bottom: 16px;
+}
+
+.history-entry h4 {
+  margin: 0 0 4px 0;
+  color: #555;
+}
+
+.history-date {
+  font-size: 13px;
+  color: #777;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.history-changes {
+  margin: 0;
+  padding-left: 20px;
+  color: #666;
+  font-size: 14px;
+}
+
+.close-button {
+  background-color: #D32F2F;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.close-button:hover {
+  background-color: #B71C1C;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .version-dialog-header h2 {
+    font-size: 20px;
+  }
+  
+  .version-dialog-content {
+    padding: 16px;
+  }
+}
