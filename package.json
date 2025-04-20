@@ -41,7 +41,7 @@
     "@angular/compiler-cli": "^19.2.7",
     "@angular/language-service": "^19.2.7",
     "@azure/static-web-apps-cli": "*",
-    "@types/jasmine": "~3.6.0",
+    "@types/jasmine": "~5.1.7",
     "@types/jasminewd2": "~2.0.3",
     "@types/node": "^12.20.55",
     "codelyzer": "^6.0.0",
