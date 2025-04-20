@@ -14,6 +14,7 @@ export class VersionInfoComponent implements OnInit {
   versionInfo: VersionInfo | null = null;
   isDialogOpen: boolean = false;
   versionHistory: VersionInfo[] = [];
+  isNewVersion: boolean = false;
 
   constructor(private versionService: VersionService) {}
 
@@ -22,10 +23,11 @@ export class VersionInfoComponent implements OnInit {
     this.versionInfo = this.versionService.getCurrentVersion();
     this.versionHistory = this.versionService.getVersionHistory();
     
-    // Show version dialog if this is the first time running this version
-    if (this.versionService.isNewVersion()) {
-      this.openDialog();
-    }
+    // Check if this is a new version but don't open dialog automatically
+    this.isNewVersion = this.versionService.isNewVersion();
+    
+    // Store current version in localStorage to prevent future popups
+    localStorage.setItem('app_version', this.versionString);
   }
 
   openDialog(): void {

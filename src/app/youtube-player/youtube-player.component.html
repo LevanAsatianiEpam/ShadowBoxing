@@ -1,6 +1,10 @@
 <div class="youtube-player-container">
-  <div *ngIf="isValidUrl(); else noVideo" class="player-wrapper audio-mode">
-    <iframe 
+  <div *ngIf="isValidUrl()" class="player-wrapper" [class.audio-mode]="true">
+    <!-- Container for YouTube IFrame API player -->
+    <div #youtubeContainer *ngIf="useYouTubeAPI" class="youtube-api-container"></div>
+    
+    <!-- Fallback iframe player -->
+    <iframe *ngIf="!useYouTubeAPI"
       [src]="safeSrc"
       frameborder="0" 
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
@@ -11,15 +15,18 @@
       loading="lazy"
       title="YouTube Audio Player">
     </iframe>
+    
     <div class="audio-overlay">
       <div class="audio-info">
         <p class="audio-title">Music Player</p>
-        <p class="audio-status">{{ isPlaying ? 'Playing' : 'Paused' }}</p>
+        <p class="audio-status" *ngIf="youtubeVideoId">{{ isPlaying ? 'Playing' : 'Paused' }}</p>
+        <p class="audio-status" *ngIf="!youtubeVideoId && videoUrl">Loading...</p>
       </div>
     </div>
   </div>
+  
   <ng-template #noVideo>
-    <div class="no-video-message" *ngIf="videoUrl">
+    <div class="no-video-message" *ngIf="videoUrl && !isValidUrl()">
       <p>Invalid YouTube URL. Please enter a valid YouTube URL.</p>
       <p class="example-url">Example: https://www.youtube.com/watch?v=VIDEO_ID</p>
     </div>

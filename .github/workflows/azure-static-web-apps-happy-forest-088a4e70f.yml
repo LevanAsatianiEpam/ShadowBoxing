@@ -23,6 +23,7 @@ jobs:
           submodules: true
           lfs: false
           fetch-depth: 0  # Need full history for version determination
+          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -48,6 +49,19 @@ jobs:
           VERSION=$(node -e "console.log(require('./package.json').version)")
           echo "New version: $VERSION"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
+          
+      # Push version changes back to the repository
+      - name: Push version changes
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.VERSION != ''
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+            echo "Changes detected, pushing version updates"
+            git add package.json src/app/services/version.service.ts
+            git commit -m "chore: update version to $VERSION [skip ci]"
+            git push origin HEAD:main
+          else
+            echo "No changes to commit"
+          fi
 
       # Install OIDC client
       - name: Install OIDC Client from Core Package
