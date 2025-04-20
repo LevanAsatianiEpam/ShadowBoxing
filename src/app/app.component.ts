@@ -14,7 +14,7 @@ import { BoxingTimerComponent } from './boxing-timer/boxing-timer.component';
       </main>
       <footer>
         <p>© 2025 Boxing Training App</p>
-      </footer>
+      </footer>      
       <app-version-info></app-version-info>
     </div>
     `,
@@ -37,7 +37,9 @@ import { BoxingTimerComponent } from './boxing-timer/boxing-timer.component';
       }
     `],
     standalone: true,
-    imports: [VersionInfoComponent, BoxingTimerComponent]
+    imports: [
+      VersionInfoComponent, 
+      BoxingTimerComponent]
 })
 export class AppComponent {
   title = 'Boxing Training Timer';

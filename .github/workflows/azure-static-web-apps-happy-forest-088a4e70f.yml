@@ -16,14 +16,13 @@ jobs:
     name: Build and Deploy Job
     permissions:
        id-token: write
-       contents: write  # Changed from 'read' to 'write' for creating tags
+       contents: write  # Write permission for repository contents
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
           lfs: false
           fetch-depth: 0  # Need full history for version determination
-          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -50,18 +49,13 @@ jobs:
           echo "New version: $VERSION"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           
-      # Push version changes back to the repository
+      # Push version changes back to the repository using a PAT
       - name: Push version changes
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.VERSION != ''
-        run: |
-          if [[ -n $(git status --porcelain) ]]; then
-            echo "Changes detected, pushing version updates"
-            git add package.json src/app/services/version.service.ts
-            git commit -m "chore: update version to $VERSION [skip ci]"
-            git push origin HEAD:main
-          else
-            echo "No changes to commit"
-          fi
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update version to ${{ env.VERSION }} [skip ci]"
+          file_pattern: "package.json src/app/services/version.service.ts"
 
       # Install OIDC client
       - name: Install OIDC Client from Core Package
@@ -83,20 +77,40 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_HAPPY_FOREST_088A4E70F }}
           action: "upload"
-          ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
-          # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
           app_location: "/" # App source code path
           api_location: "" # Api source code path - optional
-          output_location: "dist/shadow-boxing/browser" # Updated output location to match the new app name
+          output_location: "dist/shadow-boxing/browser" # Updated output location 
           github_id_token: ${{ steps.idtoken.outputs.result }}
-          ###### End of Repository/Build Configurations ######
       
-      # Create tag for the new version
-      - name: Create Git Tag
+      # Create tag for the new version using GitHub API
+      - name: Create Release Tag
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.VERSION != ''
-        run: |
-          git tag -a v${{ env.VERSION }} -m "Release v${{ env.VERSION }}"
-          git push origin v${{ env.VERSION }}
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const version = process.env.VERSION;
+            const tagName = `v${version}`;
+            const sha = context.sha;
+            
+            console.log(`Creating tag ${tagName} for commit ${sha}`);
+            
+            try {
+              // Create the tag reference
+              await github.rest.git.createRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `refs/tags/${tagName}`,
+                sha: sha
+              });
+              console.log(`Successfully created tag ${tagName}`);
+            } catch (error) {
+              if (error.message.includes('Reference already exists')) {
+                console.log(`Tag ${tagName} already exists, skipping`);
+              } else {
+                throw error;
+              }
+            }
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
