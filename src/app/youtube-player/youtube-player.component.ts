@@ -42,11 +42,25 @@ export class YoutubePlayerComponent implements OnChanges, OnDestroy {
     // Extract video ID from various YouTube URL formats including mobile and playlist links
     let videoId = null;
     
+    if (!this.videoUrl || typeof this.videoUrl !== 'string') {
+      this.youtubeVideoId = null;
+      return;
+    }
+
     try {
-      // Handle full youtube.com URLs
-      if (this.videoUrl.includes('youtube.com')) {
-        // Create a URL object to parse parameters easily
-        const url = new URL(this.videoUrl);
+      // First clean the URL by removing any unnecessary whitespace
+      const cleanUrl = this.videoUrl.trim();
+      
+      // Handle all possible youtube.com URLs (including mobile m.youtube.com)
+      if (cleanUrl.includes('youtube.com') || cleanUrl.includes('youtu.be') || cleanUrl.includes('youtube.app')) {
+        // Try to create a URL object to parse parameters easily
+        // Add protocol if missing to prevent URL constructor errors
+        let urlToProcess = cleanUrl;
+        if (!urlToProcess.match(/^https?:\/\//)) {
+          urlToProcess = 'https://' + urlToProcess;
+        }
+        
+        const url = new URL(urlToProcess);
         
         // Standard watch URL
         if (url.pathname.includes('/watch')) {
@@ -54,11 +68,30 @@ export class YoutubePlayerComponent implements OnChanges, OnDestroy {
         } 
         // Embed URL
         else if (url.pathname.includes('/embed/')) {
-          videoId = url.pathname.split('/embed/')[1];
+          videoId = url.pathname.split('/embed/')[1]?.split('?')[0];
         }
-        // Shortened URL
+        // Mobile app shorts
         else if (url.pathname.includes('/shorts/')) {
-          videoId = url.pathname.split('/shorts/')[1];
+          videoId = url.pathname.split('/shorts/')[1]?.split('?')[0];
+        }
+        // Mobile YouTube links
+        else if (url.host.includes('m.youtube.com')) {
+          if (url.pathname.includes('/watch')) {
+            videoId = url.searchParams.get('v');
+          }
+        }
+        // youtu.be shortened URLs
+        else if (url.host.includes('youtu.be')) {
+          videoId = url.pathname.substring(1).split('?')[0];
+        }
+        // YouTube mobile app deep links
+        else if (url.host.includes('youtube.app')) {
+          // These can be complex, so we'll rely on regex pattern matching below
+        }
+        
+        // Remove any hash fragments
+        if (videoId && videoId.includes('#')) {
+          videoId = videoId.split('#')[0];
         }
         
         // Handle playlists - we still get the first video's ID
@@ -68,27 +101,26 @@ export class YoutubePlayerComponent implements OnChanges, OnDestroy {
             videoId = videoParam;
           }
         }
-      } 
-      // Handle youtu.be shortened URLs
-      else if (this.videoUrl.includes('youtu.be')) {
-        const url = new URL(this.videoUrl);
-        videoId = url.pathname.substring(1);
-      }
-      // Handle mobile links (m.youtube.com)
-      else if (this.videoUrl.includes('m.youtube.com')) {
-        const url = new URL(this.videoUrl);
-        if (url.pathname.includes('/watch')) {
-          videoId = url.searchParams.get('v');
-        }
       }
     } catch (e) {
       console.error('Error parsing YouTube URL:', e);
-      // Fall back to regex pattern matching if URL parsing fails
+      // URL constructor failed, fallback to regex
+    }
+
+    // If the URL constructor approach failed or didn't find a video ID, try regex patterns
+    if (!videoId) {
       const urlPatterns = [
-        /(?:https?:\/\/)?(?:www\.|m\.)?youtube\.com\/watch\?v=([^&]+)/,
-        /(?:https?:\/\/)?(?:www\.)?youtu\.be\/([^?]+)/,
-        /(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([^?]+)/,
-        /(?:https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([^?]+)/
+        /(?:https?:\/\/)?(?:www\.|m\.)?youtube\.com\/watch\?v=([^&#]+)/i,
+        /(?:https?:\/\/)?(?:www\.)?youtu\.be\/([^?#]+)/i,
+        /(?:https?:\/\/)?(?:www\.|m\.)?youtube\.com\/embed\/([^?#]+)/i,
+        /(?:https?:\/\/)?(?:www\.|m\.)?youtube\.com\/shorts\/([^?#]+)/i,
+        /(?:https?:\/\/)?youtube\.app\.goo\.gl\/([^?#]+)/i,
+        /(?:https?:\/\/)?youtu\.be\/([^?#]+)/i,
+        /(?:https?:\/\/)?youtube:\/\/([^?#]+)/i, // YouTube app deep links
+        /v=([^&#]+)/i, // Simplified pattern to match v parameter
+        /\/v\/([^?#]+)/i, // Another variation
+        /vi\/([^?#]+)/i, // Another variation
+        /\/embed\/([^?#]+)/i, // Another variation
       ];
 
       for (const pattern of urlPatterns) {
@@ -105,22 +137,24 @@ export class YoutubePlayerComponent implements OnChanges, OnDestroy {
 
   private createSafeUrl(): void {
     if (this.youtubeVideoId) {
-      // Build the embed URL with appropriate parameters
-      let embedUrl = `https://www.youtube.com/embed/${this.youtubeVideoId}?enablejsapi=1&controls=1&autoplay=${this.isPlaying ? '1' : '0'}&mute=0&playsinline=1&rel=0`;
+      // Build the embed URL with mobile-friendly parameters
+      const embedUrl = `https://www.youtube.com/embed/${this.youtubeVideoId}?enablejsapi=1&playsinline=1&rel=0&modestbranding=1&origin=${encodeURIComponent(window.location.origin)}${this.isPlaying ? '&autoplay=1&mute=0' : ''}`;
       
-      // If the original URL has a playlist parameter, add it to the embed URL
+      // Add playlist if present in original URL
+      let finalEmbedUrl = embedUrl;
       try {
-        const originalUrl = new URL(this.videoUrl);
-        const playlist = originalUrl.searchParams.get('list');
-        if (playlist) {
-          embedUrl += `&list=${playlist}`;
+        if (this.videoUrl.includes('list=')) {
+          const match = this.videoUrl.match(/[?&]list=([^&]+)/);
+          if (match && match[1]) {
+            finalEmbedUrl += `&list=${match[1]}`;
+          }
         }
       } catch (e) {
         console.warn('Error extracting playlist information:', e);
       }
       
-      this.currentEmbedUrl = embedUrl;
-      this.safeSrc = this.sanitizer.bypassSecurityTrustResourceUrl(embedUrl);
+      this.currentEmbedUrl = finalEmbedUrl;
+      this.safeSrc = this.sanitizer.bypassSecurityTrustResourceUrl(finalEmbedUrl);
       
       // Notify parent component that player is ready
       setTimeout(() => this.playerReady.emit(), 1000);
@@ -129,9 +163,7 @@ export class YoutubePlayerComponent implements OnChanges, OnDestroy {
 
   private updatePlayerState(): void {
     if (this.youtubeVideoId) {
-      // Update the embed URL with the new autoplay state
-      this.currentEmbedUrl = `https://www.youtube.com/embed/${this.youtubeVideoId}?enablejsapi=1&controls=1&autoplay=${this.isPlaying ? '1' : '0'}&mute=0&playsinline=1&rel=0`;
-      this.safeSrc = this.sanitizer.bypassSecurityTrustResourceUrl(this.currentEmbedUrl);
+      this.createSafeUrl();
     }
   }
 

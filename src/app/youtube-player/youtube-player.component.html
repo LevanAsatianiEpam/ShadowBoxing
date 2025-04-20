@@ -4,12 +4,19 @@
       [src]="safeSrc"
       frameborder="0" 
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-      allowfullscreen>
+      allowfullscreen
+      webkitallowfullscreen
+      mozallowfullscreen
+      playsinline>
     </iframe>
   </div>
   <ng-template #noVideo>
     <div class="no-video-message" *ngIf="videoUrl">
       <p>Invalid YouTube URL. Please enter a valid YouTube video URL.</p>
+      <p class="example-url">Example: https://www.youtube.com/watch?v=VIDEO_ID</p>
+    </div>
+    <div class="no-video-message" *ngIf="!videoUrl">
+      <p>Enter a YouTube URL to add music to your workout.</p>
     </div>
   </ng-template>
 </div>
