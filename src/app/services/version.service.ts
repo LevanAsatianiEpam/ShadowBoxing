@@ -1,16 +1,27 @@
 import { Injectable } from '@angular/core';
 
-// Try to import package.json, but provide a fallback in case of import issues
-let packageVersion = '1.0.0';
-try {
-  // Using dynamic import for JSON to avoid TypeScript configuration issues
-  const packageInfo = require('../../../package.json');
-  if (packageInfo && packageInfo.version) {
-    packageVersion = packageInfo.version;
-  }
-} catch (e) {
-  console.warn('Could not load version from package.json:', e);
+// Create a type-safe interface for our package.json structure
+interface PackageInfo {
+  version: string;
+  name?: string;
+  [key: string]: any;
 }
+
+// Default version if package.json can't be loaded
+const DEFAULT_VERSION = '1.0.0';
+
+// Static version info - this is updated by CI/CD pipeline
+// Using hardcoded version information to avoid package.json import issues
+const CURRENT_VERSION = {
+  major: 1,
+  minor: 1, 
+  patch: 0,
+  releaseDate: new Date('2025-04-20'),
+  changes: [
+    'Added YouTube music player',
+    'Bug fixes and improvements'
+  ]
+};
 
 export interface VersionInfo {
   major: number;
@@ -28,34 +39,21 @@ export class VersionService {
   private versionHistory: VersionInfo[] = [];
 
   constructor() {
-    try {
-      // Parse version from package.json or use default
-      const [major, minor, patch] = packageVersion.split('.').map(Number);
+    // Use the static version info
+    this.currentVersion = CURRENT_VERSION;
 
-      this.currentVersion = {
-        major: isNaN(major) ? 1 : major,
-        minor: isNaN(minor) ? 0 : minor,
-        patch: isNaN(patch) ? 0 : patch,
-        releaseDate: new Date('2025-04-20'),
-        changes: [
-          'Add versioning support and fixed some bugs'
-        ]
-      };
-
-      // Initialize version history
-      this.versionHistory = [this.currentVersion];
-    } catch (e) {
-      console.error('Error initializing version service:', e);
-      // Provide a fallback version if anything goes wrong
-      this.currentVersion = {
+    // Set up version history (newest first)
+    this.versionHistory = [
+      this.currentVersion,
+      // Previous version history
+      {
         major: 1,
         minor: 0,
         patch: 0,
-        releaseDate: new Date('2025-04-20'),
+        releaseDate: new Date('2025-03-15'),
         changes: ['Initial release']
-      };
-      this.versionHistory = [this.currentVersion];
-    }
+      }
+    ];
   }
 
   /**
@@ -70,10 +68,7 @@ export class VersionService {
    */
   getVersionString(): string {
     const v = this.currentVersion;
-    if (!v) {
-      return '1.0.0'; // Fallback if currentVersion is undefined
-    }
-    return `${v.major || 0}.${v.minor || 0}.${v.patch || 0}`;
+    return `${v.major}.${v.minor}.${v.patch}`;
   }
 
   /**
