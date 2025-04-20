@@ -137,8 +137,8 @@ export class YoutubePlayerComponent implements OnChanges, OnDestroy {
 
   private createSafeUrl(): void {
     if (this.youtubeVideoId) {
-      // Build the embed URL with mobile-friendly parameters
-      const embedUrl = `https://www.youtube.com/embed/${this.youtubeVideoId}?enablejsapi=1&playsinline=1&rel=0&modestbranding=1&origin=${encodeURIComponent(window.location.origin)}${this.isPlaying ? '&autoplay=1&mute=0' : ''}`;
+      // Build the embed URL with enhanced mobile-friendly parameters
+      const embedUrl = `https://www.youtube-nocookie.com/embed/${this.youtubeVideoId}?enablejsapi=1&playsinline=1&rel=0&modestbranding=1&origin=${encodeURIComponent(window.location.origin)}&widget_referrer=${encodeURIComponent(window.location.href)}${this.isPlaying ? '&autoplay=1&mute=0' : ''}&fs=1&allow=autoplay`;
       
       // Add playlist if present in original URL
       let finalEmbedUrl = embedUrl;
