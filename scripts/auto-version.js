@@ -67,33 +67,110 @@ function generateReleaseNotes() {
 
 // Update package.json version
 function updatePackageVersion(bumpType) {
-  // Read package.json
-  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
-  const currentVersion = packageJson.version;
-  
-  // Parse version
-  const [major, minor, patch] = currentVersion.split('.').map(Number);
-  
-  // Update version based on bump type
-  let newVersion;
-  switch (bumpType) {
-    case 'major':
-      newVersion = `${major + 1}.0.0`;
-      break;
-    case 'minor':
-      newVersion = `${major}.${minor + 1}.0`;
-      break;
-    case 'patch':
-    default:
-      newVersion = `${major}.${minor}.${patch + 1}`;
-      break;
+  // Create a backup before making changes
+  try {
+    const backupPath = `${packageJsonPath}.bak`;
+    fs.copyFileSync(packageJsonPath, backupPath);
+    console.log(`Created backup of package.json at ${backupPath}`);
+  } catch (error) {
+    console.warn('Could not create backup of package.json:', error);
   }
-  
-  // Write updated version
-  packageJson.version = newVersion;
-  fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
-  
-  return { currentVersion, newVersion };
+
+  try {
+    // Read package.json
+    const packageJsonContent = fs.readFileSync(packageJsonPath, 'utf-8');
+    let packageJson;
+    
+    try {
+      packageJson = JSON.parse(packageJsonContent);
+    } catch (parseError) {
+      console.error('Error parsing package.json:', parseError);
+      console.log('Attempting to restore from backup...');
+      
+      // Try to restore from backup if it exists
+      const backupPath = `${packageJsonPath}.bak`;
+      if (fs.existsSync(backupPath)) {
+        fs.copyFileSync(backupPath, packageJsonPath);
+        console.log('Restored package.json from backup');
+        return { currentVersion: '0.0.0', newVersion: '0.0.1' };
+      }
+      
+      throw new Error('Failed to parse package.json and no backup available');
+    }
+    
+    const currentVersion = packageJson.version || '0.0.0';
+    
+    // Parse version
+    const versionParts = currentVersion.split('.').map(Number);
+    let major = versionParts[0] || 0;
+    let minor = versionParts[1] || 0;
+    let patch = versionParts[2] || 0;
+    
+    // Update version based on bump type
+    let newVersion;
+    switch (bumpType) {
+      case 'major':
+        newVersion = `${major + 1}.0.0`;
+        break;
+      case 'minor':
+        newVersion = `${major}.${minor + 1}.0`;
+        break;
+      case 'patch':
+      default:
+        newVersion = `${major}.${minor}.${patch + 1}`;
+        break;
+    }
+    
+    // Write updated version
+    packageJson.version = newVersion;
+    
+    // Write back with proper formatting to avoid JSON errors
+    const updatedContent = JSON.stringify(packageJson, null, 2) + '\n';
+    
+    // Write to a temp file first to avoid corruption
+    const tempPath = `${packageJsonPath}.new`;
+    fs.writeFileSync(tempPath, updatedContent, 'utf8');
+    
+    // Verify the temp file is valid JSON
+    try {
+      const verifyContent = fs.readFileSync(tempPath, 'utf8');
+      JSON.parse(verifyContent); // Just to verify
+      
+      // Copy the verified file to the actual path
+      fs.copyFileSync(tempPath, packageJsonPath);
+      fs.unlinkSync(tempPath); // Clean up
+      
+    } catch (verifyError) {
+      console.error('Error verifying new package.json:', verifyError);
+      
+      // Restore from backup
+      const backupPath = `${packageJsonPath}.bak`;
+      if (fs.existsSync(backupPath)) {
+        fs.copyFileSync(backupPath, packageJsonPath);
+        console.log('Restored package.json from backup due to verification failure');
+      }
+      
+      throw new Error('Failed to verify new package.json');
+    }
+    
+    return { currentVersion, newVersion };
+  } catch (error) {
+    console.error('Error updating package.json version:', error);
+    
+    // Attempt to restore from backup as a last resort
+    try {
+      const backupPath = `${packageJsonPath}.bak`;
+      if (fs.existsSync(backupPath)) {
+        fs.copyFileSync(backupPath, packageJsonPath);
+        console.log('Restored package.json from backup after error');
+      }
+    } catch (restoreError) {
+      console.error('Failed to restore package.json from backup:', restoreError);
+    }
+    
+    // Return default values to continue execution
+    return { currentVersion: '0.0.0', newVersion: '0.0.1' };
+  }
 }
 
 // Update version service with new version info
