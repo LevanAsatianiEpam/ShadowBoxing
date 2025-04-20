@@ -1,0 +1,9 @@
+{
+  "name": "Shadow Boxing Trainer",
+  "short_name": "Boxing Trainer",
+  "theme_color": "#D32F2F",
+  "background_color": "#fafafa",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait"
+}
