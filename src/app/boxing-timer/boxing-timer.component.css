@@ -213,6 +213,12 @@ input[type="number"], input[type="text"], select {
   font-size: 24px;
 }
 
+.round-info h2.get-ready {
+  color: #f1c40f;
+  font-size: 32px;
+  animation: pulse 1s infinite;
+}
+
 .round-info h3 {
   margin: 0;
   font-size: 20px;
@@ -221,6 +227,10 @@ input[type="number"], input[type="text"], select {
 
 .round-info h3.rest {
   color: #f1c40f;
+}
+
+.round-info h3.get-ready {
+  color: #2ecc71;
 }
 
 .time-display {
@@ -473,5 +483,17 @@ input[type="number"], input[type="text"], select {
   
   .youtube-player-during-workout {
     max-width: 100%;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.7;
   }
 }

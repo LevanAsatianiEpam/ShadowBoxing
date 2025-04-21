@@ -1,37 +1,36 @@
 <div class="youtube-player-container">
-  <div *ngIf="isValidUrl()" class="player-wrapper" [class.audio-mode]="true">
-    <!-- Container for YouTube IFrame API player -->
-    <div #youtubeContainer *ngIf="useYouTubeAPI" class="youtube-api-container"></div>
-    
-    <!-- Fallback iframe player -->
-    <iframe *ngIf="!useYouTubeAPI"
-      [src]="safeSrc"
-      frameborder="0" 
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-      allowfullscreen
-      webkitallowfullscreen
-      mozallowfullscreen
-      playsinline
-      loading="lazy"
-      title="YouTube Audio Player">
-    </iframe>
-    
-    <div class="audio-overlay">
-      <div class="audio-info">
-        <p class="audio-title">Music Player</p>
-        <p class="audio-status" *ngIf="youtubeVideoId">{{ isPlaying ? 'Playing' : 'Paused' }}</p>
-        <p class="audio-status" *ngIf="!youtubeVideoId && videoUrl">Loading...</p>
-      </div>
-    </div>
+  <!-- Player Header with Playlist Information -->
+  <div class="player-info" *ngIf="isPlaylist && (videoTitle || playlistTitle)">
+    <span class="playlist-indicator">PLAYLIST</span>
+    <span class="playlist-details">
+      {{ videoTitle ? videoTitle : '' }}
+      {{ playlistTitle ? ' - ' + playlistTitle : '' }}
+    </span>
   </div>
-  
-  <ng-template #noVideo>
-    <div class="no-video-message" *ngIf="videoUrl && !isValidUrl()">
-      <p>Invalid YouTube URL. Please enter a valid YouTube URL.</p>
-      <p class="example-url">Example: https://www.youtube.com/watch?v=VIDEO_ID</p>
-    </div>
-    <div class="no-video-message" *ngIf="!videoUrl">
-      <p>Enter a YouTube URL to add music to your workout.</p>
-    </div>
-  </ng-template>
+
+  <!-- YouTube API Player Container -->
+  <div *ngIf="useYouTubeAPI && (youtubeVideoId || (isPlaylist && playlistId))" 
+       class="player-wrapper">
+    <div #youtubeContainer class="youtube-api-container"></div>
+  </div>
+
+  <!-- Fallback iFrame Player -->
+  <div *ngIf="!useYouTubeAPI && safeSrc" class="player-wrapper">
+    <iframe [src]="safeSrc" 
+            frameborder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+            allowfullscreen>
+    </iframe>
+  </div>
+
+  <!-- No Video Message -->
+  <div *ngIf="videoUrl && videoUrl.trim() !== '' && !isValidUrl()" class="no-video-message">
+    <p>Unable to load YouTube video. Please check the URL format.</p>
+    <p class="example-url">Example formats:</p>
+    <ul class="examples-list">
+      <li>https://www.youtube.com/watch?v=XXXXXXXXXXX</li>
+      <li>https://youtu.be/XXXXXXXXXXX</li>
+      <li>XXXXXXXXXXX (video ID only)</li>
+    </ul>
+  </div>
 </div>

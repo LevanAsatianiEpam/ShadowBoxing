@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnDestroy, OnChanges, SimpleChanges, AfterViewInit, ElementRef, ViewChild, Renderer2 } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnDestroy, OnChanges, SimpleChanges, AfterViewInit, ElementRef, ViewChild, Renderer2, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SafeResourceUrl, DomSanitizer } from '@angular/platform-browser';
 
@@ -17,8 +17,15 @@ export class YoutubePlayerComponent implements OnChanges, OnDestroy, AfterViewIn
   
   @ViewChild('youtubeContainer') youtubeContainer: ElementRef;
   
+  private sanitizer = inject(DomSanitizer);
+  private renderer = inject(Renderer2);
+  
   safeSrc: SafeResourceUrl | null = null;
   youtubeVideoId: string | null = null;
+  playlistId: string | null = null;
+  isPlaylist: boolean = false;
+  videoTitle: string = '';
+  playlistTitle: string = '';
   isMobileDevice: boolean = false;
   useYouTubeAPI: boolean = true;
   player: any = null;
@@ -27,10 +34,7 @@ export class YoutubePlayerComponent implements OnChanges, OnDestroy, AfterViewIn
   playerInitialized: boolean = false;
   private currentEmbedUrl: string = '';
 
-  constructor(
-    private sanitizer: DomSanitizer,
-    private renderer: Renderer2
-  ) {
+  constructor() {
     // Detect mobile devices
     this.isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
@@ -57,7 +61,16 @@ export class YoutubePlayerComponent implements OnChanges, OnDestroy, AfterViewIn
         if (this.useYouTubeAPI && this.isAPIReady) {
           if (this.player) {
             // Load new video in existing player
-            this.player.loadVideoById(this.youtubeVideoId);
+            if (this.isPlaylist && this.playlistId) {
+              this.player.loadPlaylist({
+                listType: 'playlist',
+                list: this.playlistId,
+                index: 0,
+                startSeconds: 0
+              });
+            } else {
+              this.player.loadVideoById(this.youtubeVideoId);
+            }
           } else {
             // Initialize new player
             this.initializeYouTubePlayer();
@@ -119,19 +132,28 @@ export class YoutubePlayerComponent implements OnChanges, OnDestroy, AfterViewIn
     this.renderer.appendChild(container, playerElement);
     
     try {
+      // Prepare player options
+      const playerVars: any = {
+        autoplay: this.isPlaying ? 1 : 0,
+        controls: 1, // Always show controls
+        playsinline: 1,
+        modestbranding: 1,
+        rel: 0,
+        fs: 1, // Allow fullscreen
+        iv_load_policy: 3
+      };
+      
+      // Add playlist if available
+      if (this.isPlaylist && this.playlistId) {
+        playerVars.list = this.playlistId;
+        playerVars.listType = 'playlist';
+      }
+      
       // Initialize player
       this.playerInitialized = true;
       this.player = new window['YT'].Player(playerId, {
         videoId: this.youtubeVideoId,
-        playerVars: {
-          autoplay: this.isPlaying ? 1 : 0,
-          controls: 1,
-          playsinline: 1,
-          modestbranding: 1,
-          rel: 0,
-          fs: 0,
-          iv_load_policy: 3
-        },
+        playerVars: playerVars,
         events: {
           onReady: this.onPlayerReady.bind(this),
           onStateChange: this.onPlayerStateChange.bind(this),
@@ -148,14 +170,61 @@ export class YoutubePlayerComponent implements OnChanges, OnDestroy, AfterViewIn
 
   private onPlayerReady(event: any): void {
     this.isPlayerReady = true;
+    
+    // Start playing if needed
     if (this.isPlaying) {
       event.target.playVideo();
     }
+    
+    // Get video title if available
+    try {
+      const videoData = event.target.getVideoData();
+      if (videoData && videoData.title) {
+        this.videoTitle = videoData.title;
+      }
+      
+      // Check if we're viewing a playlist
+      const playlistId = event.target.getPlaylist();
+      if (playlistId && playlistId.length > 0) {
+        this.isPlaylist = true;
+      }
+    } catch (e) {
+      console.warn('Could not get video data:', e);
+    }
+    
     this.playerReady.emit();
   }
 
   private onPlayerStateChange(event: any): void {
-    // Handle player state changes if needed
+    // Update play state and video information when state changes
+    switch(event.data) {
+      case window['YT'].PlayerState.PLAYING:
+        // Try to get video title when video starts playing
+        try {
+          const videoData = event.target.getVideoData();
+          if (videoData && videoData.title) {
+            this.videoTitle = videoData.title;
+          }
+          
+          // Check if current video is part of a playlist
+          const playlistId = event.target.getPlaylist();
+          if (playlistId && playlistId.length > 0) {
+            this.isPlaylist = true;
+            // Get current position in playlist
+            const index = event.target.getPlaylistIndex();
+            if (index !== undefined) {
+              this.playlistTitle = `Video ${index + 1} of ${playlistId.length}`;
+            }
+          }
+        } catch (e) {
+          console.warn('Error getting video data on state change:', e);
+        }
+        break;
+        
+      case window['YT'].PlayerState.CUED:
+        // Video is cued and ready to play
+        break;
+    }
   }
 
   private onPlayerError(event: any): void {
@@ -169,11 +238,14 @@ export class YoutubePlayerComponent implements OnChanges, OnDestroy, AfterViewIn
   }
 
   private extractVideoId(): void {
-    // Extract video ID from various YouTube URL formats including mobile and playlist links
+    // Extract video ID and playlist ID from various YouTube URL formats
     let videoId = null;
+    let playlistId = null;
     
     if (!this.videoUrl || typeof this.videoUrl !== 'string') {
       this.youtubeVideoId = null;
+      this.playlistId = null;
+      this.isPlaylist = false;
       return;
     }
 
@@ -182,6 +254,14 @@ export class YoutubePlayerComponent implements OnChanges, OnDestroy, AfterViewIn
     try {
       // First clean the URL by removing any unnecessary whitespace
       const cleanUrl = this.videoUrl.trim();
+      
+      // Check for playlist ID in the URL
+      const playlistMatch = cleanUrl.match(/[?&]list=([^&#]+)/i);
+      if (playlistMatch && playlistMatch[1]) {
+        playlistId = playlistMatch[1];
+        this.isPlaylist = true;
+        console.log('Found playlist ID:', playlistId);
+      }
       
       // Direct video ID pattern (11 characters consisting of alphanumeric, dash, and underscore)
       const directIdMatch = /^[A-Za-z0-9_-]{11}$/.exec(cleanUrl);
@@ -202,8 +282,17 @@ export class YoutubePlayerComponent implements OnChanges, OnDestroy, AfterViewIn
         
         const url = new URL(urlToProcess);
         
+        // Check for playlist without a video
+        if (url.pathname.includes('/playlist')) {
+          // This is a pure playlist link, we may not have a video ID yet
+          this.isPlaylist = true;
+          if (!videoId) {
+            // Use the first video of the playlist
+            videoId = null; // YouTube API will load the first video automatically
+          }
+        }
         // Standard watch URL
-        if (url.pathname.includes('/watch')) {
+        else if (url.pathname.includes('/watch')) {
           videoId = url.searchParams.get('v');
           console.log('Watch URL param v=', videoId);
         } 
@@ -277,16 +366,35 @@ export class YoutubePlayerComponent implements OnChanges, OnDestroy, AfterViewIn
       }
     }
     
+    // Store the extracted IDs
     this.youtubeVideoId = videoId;
+    this.playlistId = playlistId;
+    
+    // For pure playlist URLs without a video ID
+    if (this.isPlaylist && this.playlistId && !this.youtubeVideoId) {
+      // We'll let YouTube API handle this by loading the first video
+      this.youtubeVideoId = 'placeholder';
+    }
+    
     console.log('Final extracted video ID:', videoId);
+    console.log('Playlist ID:', playlistId);
+    console.log('Is Playlist:', this.isPlaylist);
   }
 
   private createSafeUrl(): void {
-    if (this.youtubeVideoId) {
-      // Build embed URL optimized for audio playback with mobile compatibility
-      // Use YouTube's no-cookie domain for better privacy
-      const embedUrl = `https://www.youtube-nocookie.com/embed/${this.youtubeVideoId}?` + 
-        `enablejsapi=1` +
+    if (this.youtubeVideoId || (this.isPlaylist && this.playlistId)) {
+      // Build embed URL with appropriate options
+      let embedUrl = 'https://www.youtube-nocookie.com/embed/';
+      
+      // Add video ID if available, otherwise just use the playlist
+      if (this.youtubeVideoId && this.youtubeVideoId !== 'placeholder') {
+        embedUrl += `${this.youtubeVideoId}?`;
+      } else {
+        embedUrl += `?`;
+      }
+      
+      // Add common parameters - always showing controls
+      embedUrl += `enablejsapi=1` +
         `&playsinline=1` +
         `&rel=0` +
         `&modestbranding=1` +
@@ -295,18 +403,10 @@ export class YoutubePlayerComponent implements OnChanges, OnDestroy, AfterViewIn
         `&origin=${encodeURIComponent(window.location.origin)}` +
         `${this.isPlaying ? '&autoplay=1&mute=0' : ''}`;
       
-      // Add playlist if present in original URL
+      // Add playlist if present
       let finalEmbedUrl = embedUrl;
-      try {
-        // Handle playlists
-        if (this.videoUrl.includes('list=')) {
-          const match = this.videoUrl.match(/[?&]list=([^&]+)/);
-          if (match && match[1]) {
-            finalEmbedUrl += `&list=${match[1]}`;
-          }
-        }
-      } catch (e) {
-        console.warn('Error extracting playlist information:', e);
+      if (this.isPlaylist && this.playlistId) {
+        finalEmbedUrl += `&list=${this.playlistId}`;
       }
       
       this.currentEmbedUrl = finalEmbedUrl;
@@ -324,8 +424,8 @@ export class YoutubePlayerComponent implements OnChanges, OnDestroy, AfterViewIn
   }
 
   isValidUrl(): boolean {
-    // If we have a video ID, consider it valid even before the safe URL is created
-    if (this.youtubeVideoId) {
+    // Valid if we have a video ID or a playlist ID
+    if (this.youtubeVideoId || (this.isPlaylist && this.playlistId)) {
       return true;
     }
     

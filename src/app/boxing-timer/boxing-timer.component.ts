@@ -24,7 +24,7 @@ import { WorkoutHistoryService } from '../services/workout-history.service';
     TechniqueAnalysisComponent
   ],
   templateUrl: './boxing-timer.component.html',
-  styleUrl: './boxing-timer.component.css'
+  styleUrls: ['./boxing-timer.component.css']
 })
 export class BoxingTimerComponent {
   // Audio references
@@ -35,17 +35,20 @@ export class BoxingTimerComponent {
   totalRounds: number = 3;
   roundTime: number = 180; // 3 minutes in seconds
   restTime: number = 60; // 1 minute in seconds
+  getReadyTime: number = 10; // 10 seconds countdown before first round
   
   // Timer state
   isRunning: boolean = false;
   isPaused: boolean = false;
   isResting: boolean = false;
+  isGettingReady: boolean = false;
   currentRound: number = 1;
   timeRemaining: number = 0;
   timerInterval: any;
   
   // Time tracking for accurate timing
   private lastTickTime: number = 0;
+  private tenSecondWarningSounded: boolean = false;
   
   // Workout tracking
   totalWorkoutTime: number = 0;
@@ -92,19 +95,24 @@ export class BoxingTimerComponent {
     this.isRunning = true;
     this.isPaused = false;
     this.isResting = false;
+    this.isGettingReady = true;
     this.currentRound = 1;
-    this.timeRemaining = this.roundTime;
+    this.timeRemaining = this.getReadyTime;
     this.totalWorkoutTime = 0;
     this.workoutStartTime = Date.now();
     
     this.playBellSound();
-    this.startRound();
+    this.startCountdown();
   }
   
   // Start a new round
   startRound(): void {
+    this.isGettingReady = false;
     this.isResting = false;
     this.timeRemaining = this.roundTime;
+    this.tenSecondWarningSounded = false;
+    
+    this.playBellSound();
     
     if (this.musicEnabled) {
       if (this.musicSource === 'youtube') {
@@ -127,6 +135,7 @@ export class BoxingTimerComponent {
     
     this.isResting = true;
     this.timeRemaining = this.restTime;
+    this.tenSecondWarningSounded = false;
     
     this.playBellSound();
     
@@ -207,6 +216,9 @@ export class BoxingTimerComponent {
     // Set initial reference time
     this.lastTickTime = Date.now();
     
+    // Reset 10-second warning flag
+    this.tenSecondWarningSounded = false;
+    
     // Run timer outside NgZone for better performance when tab is not in focus
     this.ngZone.runOutsideAngular(() => {
       this.timerInterval = setInterval(() => {
@@ -230,12 +242,21 @@ export class BoxingTimerComponent {
                 // Decrement the time remaining by the exact elapsed seconds
                 this.timeRemaining = Math.max(0, this.timeRemaining - elapsedSeconds);
                 
+                // Play warning bell at 10 seconds remaining if not already sounded
+                if (this.timeRemaining === 10 && !this.tenSecondWarningSounded) {
+                  this.playBellSound();
+                  this.tenSecondWarningSounded = true;
+                }
+                
                 // Check if the countdown reached zero
                 if (this.timeRemaining <= 0) {
                   // Play bell sound
                   this.playBellSound();
                   
-                  if (this.isResting) {
+                  if (this.isGettingReady) {
+                    // Preparation phase completed - start first round
+                    this.startRound();
+                  } else if (this.isResting) {
                     // Rest period completed - move to next round
                     this.currentRound++;
                     
