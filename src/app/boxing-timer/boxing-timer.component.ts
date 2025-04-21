@@ -1,15 +1,28 @@
-import { Component, ElementRef, ViewChild, NgZone } from '@angular/core';
+import { Component, ElementRef, ViewChild, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
+import { take } from 'rxjs/operators';
+
+// Components
 import { YoutubePlayerComponent } from '../youtube-player/youtube-player.component';
 import { PresetManagerComponent } from '../preset-manager/preset-manager.component';
 import { WorkoutHistoryComponent } from '../workout-history/workout-history.component';
 import { UserProfileSettingsComponent } from '../user-profile-settings/user-profile-settings.component';
 import { TechniqueAnalysisComponent } from '../technique-analysis/technique-analysis.component';
+import { TimerDisplayComponent } from './timer-display/timer-display.component';
+import { TimerControlsComponent } from './timer-controls/timer-controls.component';
+import { TimerSettingsComponent } from './timer-settings/timer-settings.component';
+
+// Models
 import { WorkoutPreset } from '../models/workout-preset.model';
 import { WorkoutIntensity } from '../models/workout-history.model';
+
+// Services
 import { PresetService } from '../services/preset.service';
 import { WorkoutHistoryService } from '../services/workout-history.service';
+import { TimerService, TimerState } from '../services/timer.service';
+import { SoundService, MusicState } from '../services/sound.service';
 
 @Component({
   selector: 'app-boxing-timer',
@@ -21,48 +34,34 @@ import { WorkoutHistoryService } from '../services/workout-history.service';
     PresetManagerComponent, 
     WorkoutHistoryComponent,
     UserProfileSettingsComponent,
-    TechniqueAnalysisComponent
+    TechniqueAnalysisComponent,
+    TimerDisplayComponent,
+    TimerControlsComponent,
+    TimerSettingsComponent
   ],
   templateUrl: './boxing-timer.component.html',
   styleUrls: ['./boxing-timer.component.css']
 })
-export class BoxingTimerComponent {
+export class BoxingTimerComponent implements OnInit, OnDestroy {
   // Audio references
   @ViewChild('bellSound') bellSound!: ElementRef<HTMLAudioElement>;
   @ViewChild('musicPlayer') musicPlayer!: ElementRef<HTMLAudioElement>;
   
-  // Timer settings
-  totalRounds: number = 3;
-  roundTime: number = 180; // 3 minutes in seconds
-  restTime: number = 60; // 1 minute in seconds
-  getReadyTime: number = 10; // 10 seconds countdown before first round
-  
-  // Timer state
+  // Timer state tracking
   isRunning: boolean = false;
-  isPaused: boolean = false;
-  isResting: boolean = false;
-  isGettingReady: boolean = false;
-  currentRound: number = 1;
-  timeRemaining: number = 0;
-  timerInterval: any;
-  
-  // Time tracking for accurate timing
-  private lastTickTime: number = 0;
-  private tenSecondWarningSounded: boolean = false;
-  
-  // Workout tracking
+  isCompleted: boolean = false;
   totalWorkoutTime: number = 0;
-  workoutStartTime: number = 0;
   workoutIntensity: WorkoutIntensity = WorkoutIntensity.Medium;
   
-  // Music settings
-  musicEnabled: boolean = false;
-  musicUrl: string = '';
-  youtubeEnabled: boolean = false;
+  // YouTube tracking
   youtubeUrl: string = '';
   youtubeIsPlaying: boolean = false;
   youtubePlayerReady: boolean = false;
+  
+  // Music settings
+  musicEnabled: boolean = false;
   musicSource: 'local' | 'youtube' = 'local';
+  musicUrl: string = '';
   
   // Preset Manager
   showPresetManager: boolean = false;
@@ -82,112 +81,117 @@ export class BoxingTimerComponent {
   // Technique Analysis
   showTechniqueAnalysisModal: boolean = false;
   
+  // Subscriptions
+  private timerSubscription: Subscription | null = null;
+  private musicSubscription: Subscription | null = null;
+  
   constructor(
-    private ngZone: NgZone, 
+    public timerService: TimerService,
+    public soundService: SoundService,
     private presetService: PresetService,
     public workoutHistoryService: WorkoutHistoryService
   ) {}
-
-  // Start the boxing timer
-  startTimer(): void {
-    if (this.isRunning) return;
+  
+  ngOnInit(): void {
+    // Subscribe to timer status changes
+    this.timerSubscription = this.timerService.status$.subscribe(status => {
+      // When timer state changes, update local state
+      const wasRunningBefore = this.isRunning;
+      this.isRunning = status.isRunning;
+      this.isCompleted = status.state === TimerState.Complete;
+      
+      // Start music when timer starts
+      if (!wasRunningBefore && this.isRunning) {
+        this.handleTimerStart();
+      } else if (wasRunningBefore && !this.isRunning) {
+        // Timer has stopped
+        this.handleTimerStop();
+      }
+      
+      // Handle workout completion
+      if (status.state === TimerState.Complete && status.totalElapsedTime > 0) {
+        this.totalWorkoutTime = status.totalElapsedTime;
+        this.showWorkoutCompletedModal = true;
+      }
+    });
     
-    this.isRunning = true;
-    this.isPaused = false;
-    this.isResting = false;
-    this.isGettingReady = true;
-    this.currentRound = 1;
-    this.timeRemaining = this.getReadyTime;
-    this.totalWorkoutTime = 0;
-    this.workoutStartTime = Date.now();
-    
-    this.playBellSound();
-    this.startCountdown();
+    // Subscribe to music state changes
+    this.musicSubscription = this.soundService.musicState$.subscribe(state => {
+      this.musicEnabled = state.enabled;
+      this.musicSource = state.source;
+      this.youtubeUrl = state.source === 'youtube' ? state.url : '';
+      this.musicUrl = state.url;
+      this.youtubeIsPlaying = state.source === 'youtube' && state.isPlaying;
+    });
   }
   
-  // Start a new round
-  startRound(): void {
-    this.isGettingReady = false;
-    this.isResting = false;
-    this.timeRemaining = this.roundTime;
-    this.tenSecondWarningSounded = false;
+  ngOnDestroy(): void {
+    // Clean up subscriptions
+    if (this.timerSubscription) {
+      this.timerSubscription.unsubscribe();
+    }
     
-    this.playBellSound();
+    if (this.musicSubscription) {
+      this.musicSubscription.unsubscribe();
+    }
     
-    if (this.musicEnabled) {
+    // Stop any playing music
+    this.soundService.stopMusic();
+  }
+  
+  ngAfterViewInit(): void {
+    // Set audio element references in SoundService
+    if (this.bellSound?.nativeElement) {
+      this.soundService.setBellSoundElement(this.bellSound.nativeElement);
+    }
+    
+    if (this.musicPlayer?.nativeElement) {
+      this.soundService.setMusicPlayerElement(this.musicPlayer.nativeElement);
+    }
+  }
+  
+  // Handle starting the timer
+  private handleTimerStart(): void {
+    // Play music if enabled
+    if (this.musicEnabled && this.musicUrl) {
+      console.log('Starting timer, playing music');
+      this.soundService.playMusic();
+      
+      // Force the isPlaying flag to update for YouTube
       if (this.musicSource === 'youtube') {
         this.youtubeIsPlaying = true;
-      } else if (this.musicPlayer?.nativeElement) {
-        this.musicPlayer.nativeElement.play().catch(e => console.error('Error playing music:', e));
       }
     }
-    
-    this.startCountdown();
   }
   
-  // Start rest period between rounds
-  startRest(): void {
-    // Check if this was the last round - if so, complete the workout
-    if (this.currentRound >= this.totalRounds) {
-      this.completeWorkout();
-      return;
+  // Handle stopping the timer
+  private handleTimerStop(): void {
+    // Stop music when timer stops
+    if (this.musicEnabled) {
+      console.log('Stopping timer, pausing music');
+      this.soundService.pauseMusic();
+      
+      // Force the isPlaying flag to update for YouTube
+      if (this.musicSource === 'youtube') {
+        this.youtubeIsPlaying = false;
+      }
     }
-    
-    this.isResting = true;
-    this.timeRemaining = this.restTime;
-    this.tenSecondWarningSounded = false;
-    
-    this.playBellSound();
-    
-    // Only pause local music during rest, keep YouTube music playing
-    if (this.musicEnabled && this.musicSource === 'local' && this.musicPlayer?.nativeElement) {
-      this.musicPlayer.nativeElement.pause();
-    }
-    // Note: We're intentionally NOT pausing YouTube music here to keep it playing
-    
-    this.startCountdown();
+  }
+  
+  // Format seconds to HH:MM:SS display format (for longer durations)
+  formatLongDuration(seconds: number): string {
+    return this.timerService.formatLongDuration(seconds);
   }
   
   // Complete the workout and save stats
-  completeWorkout(): void {
-    this.isRunning = false;
-    clearInterval(this.timerInterval);
-    
-    // Stop music
-    if (this.musicEnabled) {
-      if (this.musicSource === 'youtube') {
-        this.youtubeIsPlaying = false;
-      } else if (this.musicPlayer?.nativeElement) {
-        this.musicPlayer.nativeElement.pause();
-        this.musicPlayer.nativeElement.currentTime = 0;
-      }
-    }
-    
-    // Calculate total duration in seconds
-    const endTime = Date.now();
-    const totalDurationMs = endTime - this.workoutStartTime;
-    const totalDurationSeconds = Math.round(totalDurationMs / 1000);
-    
-    // Calculate calories burned
-    const caloriesBurned = this.workoutHistoryService.calculateCaloriesBurned(
-      totalDurationSeconds, 
-      this.workoutIntensity
-    );
-    
-    // Show completed modal with workout summary
-    this.totalWorkoutTime = totalDurationSeconds;
-    this.showWorkoutCompletedModal = true;
-  }
-  
-  // Save the completed workout to history
   saveWorkoutToHistory(): void {
     const workoutData = {
       programName: this.currentPreset?.name || 'Custom Workout',
       programCategory: this.currentPreset?.category || 'Shadow Boxing',
-      totalRounds: this.totalRounds,
-      rounds: this.currentRound - 1,
-      roundTime: this.roundTime,
-      restTime: this.restTime,
+      totalRounds: this.timerService.settings.totalRounds,
+      rounds: this.timerService.settings.totalRounds, // Assuming all rounds were completed
+      roundTime: this.timerService.settings.roundTime,
+      restTime: this.timerService.settings.restTime,
       duration: this.totalWorkoutTime,
       caloriesBurned: this.workoutHistoryService.calculateCaloriesBurned(
         this.totalWorkoutTime, 
@@ -206,165 +210,17 @@ export class BoxingTimerComponent {
     this.workoutNotes = '';
   }
   
-  // Handle the countdown logic with background tab support
-  startCountdown(): void {
-    // Clear any existing timer
-    if (this.timerInterval) {
-      clearInterval(this.timerInterval);
-    }
-    
-    // Set initial reference time
-    this.lastTickTime = Date.now();
-    
-    // Reset 10-second warning flag
-    this.tenSecondWarningSounded = false;
-    
-    // Run timer outside NgZone for better performance when tab is not in focus
-    this.ngZone.runOutsideAngular(() => {
-      this.timerInterval = setInterval(() => {
-        // Only process timer if the workout is running and not paused
-        if (this.isRunning && !this.isPaused) {
-          const now = Date.now();
-          const elapsedMs = now - this.lastTickTime;
-          
-          // Only update if enough time has passed (at least 1/4 second)
-          if (elapsedMs >= 250) {
-            // Calculate elapsed seconds (whole seconds)
-            const elapsedSeconds = Math.floor(elapsedMs / 1000);
-            
-            // If at least 1 second has passed, update timer
-            if (elapsedSeconds >= 1) {
-              // Update our reference time, accounting for the seconds we're processing
-              this.lastTickTime = now - (elapsedMs % 1000);
-              
-              // Use NgZone to update the UI
-              this.ngZone.run(() => {
-                // Decrement the time remaining by the exact elapsed seconds
-                this.timeRemaining = Math.max(0, this.timeRemaining - elapsedSeconds);
-                
-                // Play warning bell at 10 seconds remaining if not already sounded
-                if (this.timeRemaining === 10 && !this.tenSecondWarningSounded) {
-                  this.playBellSound();
-                  this.tenSecondWarningSounded = true;
-                }
-                
-                // Check if the countdown reached zero
-                if (this.timeRemaining <= 0) {
-                  // Play bell sound
-                  this.playBellSound();
-                  
-                  if (this.isGettingReady) {
-                    // Preparation phase completed - start first round
-                    this.startRound();
-                  } else if (this.isResting) {
-                    // Rest period completed - move to next round
-                    this.currentRound++;
-                    
-                    if (this.currentRound > this.totalRounds) {
-                      // Workout completed
-                      this.completeWorkout();
-                    } else {
-                      // Start next round
-                      this.startRound();
-                    }
-                  } else {
-                    // Round completed - start rest period
-                    this.startRest();
-                  }
-                }
-              });
-            }
-          }
-        }
-      }, 200); // Check frequently for better accuracy
-    });
-  }
-  
-  // Pause or resume timer
-  pauseResumeTimer(): void {
-    this.isPaused = !this.isPaused;
-    
-    // Pause/resume music
-    if (this.musicEnabled) {
-      if (this.musicSource === 'youtube') {
-        this.youtubeIsPlaying = !this.isPaused;
-      } else if (this.musicPlayer?.nativeElement) {
-        if (this.isPaused) {
-          this.musicPlayer.nativeElement.pause();
-        } else {
-          this.musicPlayer.nativeElement.play().catch(e => console.error('Error playing music:', e));
-        }
-      }
-    }
-  }
-  
-  // Reset timer to initial state
-  resetTimer(): void {
-    this.isRunning = false;
-    this.isPaused = false;
-    clearInterval(this.timerInterval);
-    
-    if (this.musicEnabled) {
-      if (this.musicSource === 'youtube') {
-        this.youtubeIsPlaying = false;
-      } else if (this.musicPlayer?.nativeElement) {
-        this.musicPlayer.nativeElement.pause();
-        this.musicPlayer.nativeElement.currentTime = 0;
-      }
-    }
-  }
-  
-  // Play bell sound
-  playBellSound(): void {
-    if (this.bellSound?.nativeElement) {
-      this.bellSound.nativeElement.currentTime = 0;
-      this.bellSound.nativeElement.play().catch(e => console.error('Error playing bell sound:', e));
-    }
-  }
-  
-  // Handle music file selection
-  onMusicFileSelected(event: Event): void {
-    const fileInput = event.target as HTMLInputElement;
-    if (fileInput.files && fileInput.files.length > 0) {
-      const file = fileInput.files[0];
-      this.musicUrl = URL.createObjectURL(file);
-    }
-  }
-  
-  // Set music source to YouTube
-  setMusicSourceYoutube(): void {
-    this.musicSource = 'youtube';
-  }
-  
-  // Set music source to local file
-  setMusicSourceLocal(): void {
-    this.musicSource = 'local';
-  }
-  
   // Handle YouTube player ready event
   onYoutubePlayerReady(): void {
+    console.log('YouTube player ready event received');
     this.youtubePlayerReady = true;
-  }
-  
-  // Format seconds to MM:SS display format
-  formatTime(seconds: number): string {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  }
-  
-  // Format seconds to HH:MM:SS display format (for longer durations)
-  formatLongDuration(seconds: number): string {
-    const hours = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
     
-    let result = '';
-    if (hours > 0) {
-      result += `${hours}h `;
+    // If timer is already running and music is enabled, start playing
+    if (this.isRunning && this.musicEnabled && this.musicSource === 'youtube') {
+      console.log('Auto-playing YouTube because timer is already running');
+      this.youtubeIsPlaying = true;
+      this.soundService.playMusic();
     }
-    result += `${mins}m ${secs}s`;
-    return result;
   }
   
   // Preset Management
@@ -378,23 +234,26 @@ export class BoxingTimerComponent {
   
   onPresetSelected(preset: WorkoutPreset): void {
     // Load timer settings
-    this.totalRounds = preset.totalRounds;
-    this.roundTime = preset.roundTime;
-    this.restTime = preset.restTime;
+    this.timerService.updateSettings({
+      totalRounds: preset.totalRounds,
+      roundTime: preset.roundTime,
+      restTime: preset.restTime
+    });
     
     // Load music settings
-    this.musicEnabled = preset.musicEnabled;
-    this.musicSource = preset.musicSource;
+    this.soundService.toggleMusic(preset.musicEnabled);
+    this.soundService.setMusicSource(preset.musicSource);
     
     if (preset.musicUrl) {
-      if (this.musicSource === 'youtube') {
+      this.soundService.setMusicUrl(preset.musicUrl);
+      
+      if (preset.musicSource === 'youtube') {
         this.youtubeUrl = preset.musicUrl;
-      } else {
-        this.musicUrl = preset.musicUrl;
       }
     }
     
     this.currentPreset = preset;
+    this.hidePresets();
   }
   
   showSavePresetForm(): void {
@@ -413,41 +272,47 @@ export class BoxingTimerComponent {
       return;
     }
     
-    // Get the correct music URL based on source
-    const savedMusicUrl = this.musicSource === 'youtube' ? this.youtubeUrl : this.musicUrl;
+    // Get current settings
+    const settings = this.timerService.settings;
+    let currentMusicState: MusicState;
     
-    if (this.currentPreset) {
-      // Update existing preset
-      this.presetService.updatePreset(this.currentPreset.id, {
-        name: this.newPresetName,
-        category: this.newPresetCategory,
-        totalRounds: this.totalRounds,
-        roundTime: this.roundTime,
-        restTime: this.restTime,
-        // Include music settings
-        musicEnabled: this.musicEnabled,
-        musicSource: this.musicSource,
-        musicUrl: savedMusicUrl
-      });
-    } else {
-      // Create new preset
-      const newPreset = this.presetService.addPreset({
-        name: this.newPresetName,
-        category: this.newPresetCategory,
-        totalRounds: this.totalRounds,
-        roundTime: this.roundTime,
-        restTime: this.restTime,
-        // Include music settings
-        musicEnabled: this.musicEnabled,
-        musicSource: this.musicSource,
-        musicUrl: savedMusicUrl,
-        isFavorite: false
-      });
+    // Get current music state as a snapshot
+    this.soundService.musicState$.pipe(take(1)).subscribe(state => {
+      currentMusicState = state;
       
-      this.currentPreset = newPreset;
-    }
-    
-    this.savePresetMode = false;
+      if (this.currentPreset) {
+        // Update existing preset
+        this.presetService.updatePreset(this.currentPreset.id, {
+          name: this.newPresetName,
+          category: this.newPresetCategory,
+          totalRounds: settings.totalRounds,
+          roundTime: settings.roundTime,
+          restTime: settings.restTime,
+          // Include music settings
+          musicEnabled: currentMusicState.enabled,
+          musicSource: currentMusicState.source,
+          musicUrl: currentMusicState.url
+        });
+      } else {
+        // Create new preset
+        const newPreset = this.presetService.addPreset({
+          name: this.newPresetName,
+          category: this.newPresetCategory,
+          totalRounds: settings.totalRounds,
+          roundTime: settings.roundTime,
+          restTime: settings.restTime,
+          // Include music settings
+          musicEnabled: currentMusicState.enabled,
+          musicSource: currentMusicState.source,
+          musicUrl: currentMusicState.url,
+          isFavorite: false
+        });
+        
+        this.currentPreset = newPreset;
+      }
+      
+      this.savePresetMode = false;
+    });
   }
   
   // Workout History

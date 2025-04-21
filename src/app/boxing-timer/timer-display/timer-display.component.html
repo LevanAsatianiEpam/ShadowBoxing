@@ -1,0 +1,15 @@
+<div class="timer-display">
+  <div class="round-info">
+    <h2 *ngIf="!isGettingReady">Round {{ currentRound }} of {{ totalRounds }}</h2>
+    <h2 *ngIf="isGettingReady" class="get-ready">Get Ready!</h2>
+    <h3 [ngClass]="{'rest': isResting, 'get-ready': isGettingReady}">
+      <span *ngIf="isResting">REST</span>
+      <span *ngIf="!isResting && !isGettingReady">FIGHT!</span>
+      <span *ngIf="isGettingReady">Starting in...</span>
+    </h3>
+  </div>
+  
+  <div class="time-display">
+    <span class="time">{{ formatTime(timeRemaining) }}</span>
+  </div>
+</div>

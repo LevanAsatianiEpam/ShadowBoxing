@@ -1,0 +1,59 @@
+<div class="timer-settings">
+  <div class="settings-group">
+    <label for="rounds">Number of Rounds:</label>
+    <input type="number" id="rounds" [(ngModel)]="totalRounds" min="1" max="99" (change)="onSettingsChange()">
+  </div>
+  
+  <div class="settings-group">
+    <label for="roundTime">Round Time (seconds):</label>
+    <input type="number" id="roundTime" [(ngModel)]="roundTime" min="10" max="999" (change)="onSettingsChange()">
+  </div>
+  
+  <div class="settings-group">
+    <label for="restTime">Rest Time (seconds):</label>
+    <input type="number" id="restTime" [(ngModel)]="restTime" min="5" max="999" (change)="onSettingsChange()">
+  </div>
+  
+  <div class="settings-group">
+    <label for="workout-intensity">Workout Intensity:</label>
+    <select id="workout-intensity" [(ngModel)]="workoutIntensity">
+      <option [value]="intensities.Low">Light (less effort)</option>
+      <option [value]="intensities.Medium">Medium (moderate effort)</option>
+      <option [value]="intensities.High">Intense (high effort)</option>
+    </select>
+  </div>
+  
+  <div class="settings-group">
+    <label for="music-enabled">Enable Music:</label>
+    <input type="checkbox" id="music-enabled" [(ngModel)]="musicEnabled" (change)="onMusicEnabledChange()">
+  </div>
+  
+  <div class="music-settings" *ngIf="musicEnabled">
+    <div class="music-source-tabs">
+      <button 
+        [class.active]="musicSource === 'local'" 
+        (click)="setMusicSourceLocal()">
+        Local Music File
+      </button>
+      <button 
+        [class.active]="musicSource === 'youtube'" 
+        (click)="setMusicSourceYoutube()">
+        YouTube Music
+      </button>
+    </div>
+    
+    <div class="music-source-content">
+      <!-- Local Music File Input -->
+      <div *ngIf="musicSource === 'local'" class="settings-group">
+        <label for="music-file">Select Music File:</label>
+        <input type="file" id="music-file" accept="audio/*" (change)="onMusicFileSelected($event)">
+      </div>
+      
+      <!-- YouTube URL Input -->
+      <div *ngIf="musicSource === 'youtube'" class="settings-group">
+        <label for="youtube-url">YouTube Video URL:</label>
+        <input type="text" id="youtube-url" #youtubeUrlInput (blur)="onYoutubeUrlChange(youtubeUrlInput.value)" placeholder="https://www.youtube.com/watch?v=...">
+      </div>
+    </div>
+  </div>
+</div>

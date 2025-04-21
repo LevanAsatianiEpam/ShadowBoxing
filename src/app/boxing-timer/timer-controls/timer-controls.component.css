@@ -1,0 +1,71 @@
+.timer-controls {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 15px 0;
+}
+
+.controls {
+  display: flex;
+  gap: 15px;
+}
+
+.control-button {
+  padding: 12px 25px;
+  font-size: 1.2rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+}
+
+.control-button:hover {
+  background-color: #555;
+}
+
+.pause-resume-button {
+  background-color: #f39c12;
+  color: white;
+}
+
+.pause-resume-button:hover {
+  background-color: #d35400;
+}
+
+.reset-button {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.reset-button:hover {
+  background-color: #c0392b;
+}
+
+.start-button {
+  background-color: #2ecc71;
+  color: white;
+  font-size: 1.5rem;
+  padding: 15px 40px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.start-button:hover {
+  background-color: #27ae60;
+}
+
+@media (max-width: 768px) {
+  .start-button {
+    font-size: 1.2rem;
+    padding: 12px 30px;
+  }
+  
+  .control-button {
+    padding: 10px 20px;
+    font-size: 1rem;
+  }
+}

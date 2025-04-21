@@ -1,0 +1,14 @@
+<div class="timer-controls">
+  <ng-container *ngIf="!isRunning">
+    <button class="start-button" (click)="startTimer()">Start Training</button>
+  </ng-container>
+  
+  <ng-container *ngIf="isRunning">
+    <div class="controls">
+      <button (click)="pauseResumeTimer()" class="control-button pause-resume-button">
+        {{ isPaused ? 'Resume' : 'Pause' }}
+      </button>
+      <button (click)="resetTimer()" class="control-button reset-button">Reset</button>
+    </div>
+  </ng-container>
+</div>
